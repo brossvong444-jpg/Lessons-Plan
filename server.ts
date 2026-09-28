@@ -3,6 +3,7 @@ import { createServer as createViteServer } from 'vite';
 import { createServer as createHttpServer } from 'http';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { GoogleGenAI, Type } from '@google/genai';
 import {
   toKhmerNumber,
@@ -10,8 +11,8 @@ import {
   getStepDurations,
   buildTopicAlignedLessonPlan,
   generateSubjectVocabulary,
-} from './curriculumEngine.js';
-import { generateTopicIllustration } from './src/utils/illustrationEngine.js';
+} from './curriculumEngine.ts';
+import { generateTopicIllustration } from './src/utils/illustrationEngine.ts';
 
 dotenv.config();
 
@@ -639,7 +640,8 @@ app.post('/api/refine-step', async (req, res) => {
 const httpServer = createHttpServer(app);
 
 // Mount Vite or serve static
-if (process.env.NODE_ENV === 'production') {
+const hasDist = fs.existsSync(path.resolve('dist', 'index.html'));
+if (process.env.NODE_ENV === 'production' || (hasDist && process.env.NODE_ENV !== 'development')) {
   app.use(express.static('dist'));
   app.get('*', (req, res) => {
     res.sendFile(path.resolve('dist', 'index.html'));

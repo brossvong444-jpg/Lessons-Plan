@@ -22,11 +22,15 @@
         }
       })();
 
-      // If hosted directly on GitHub Pages root without Vite, redirect to /docs/
-      if (window.location.hostname.includes('github.io') && !window.location.pathname.includes('/docs/')) {
-        var repoBase = window.location.pathname.replace(/\/index\.html$/, '').replace(/\/$/, '');
-        window.location.replace(repoBase + '/docs/' + window.location.search + window.location.hash);
-      }
+      // Ensure trailing slash for GitHub Pages repo URLs so relative assets resolve correctly
+      (function(){
+        if (location.hostname.endsWith('github.io')) {
+          var p = location.pathname;
+          if (p.length > 1 && !p.endsWith('/') && !p.split('/').pop().includes('.')) {
+            location.replace(p + '/' + location.search + location.hash);
+          }
+        }
+      })();
     </script>
   </head>
   <body class="font-sans antialiased bg-slate-50 text-slate-900">

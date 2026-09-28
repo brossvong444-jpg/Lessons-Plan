@@ -1,7 +1,7 @@
 // Universal Dynamic Pedagogical Lesson Plan Builder for Khmer Curriculum & Custom Topics
 // Generates 100% topic-specific, non-generic lesson plans conforming to MoEYS standards
 
-import { generateTopicIllustration } from './src/utils/illustrationEngine';
+import { generateTopicIllustration } from './src/utils/illustrationEngine.ts';
 
 export function toKhmerNumber(num: number): string {
   const latinToKhmer: Record<string, string> = {
