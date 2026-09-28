@@ -3,11 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Khmer Teacher Lesson Plan AI - កម្មវិធីបង្កើតកិច្ចតែងការបង្រៀន</title>
+    <title>Khmer Teacher Lesson Plan AI</title>
     <script>
       // Single Page Apps for GitHub Pages redirect
       sessionStorage.redirect = location.href;
-      location.replace(location.pathname.split('/').slice(0, 2).join('/') + '/');
+      var pathSegments = location.pathname.split('/').filter(Boolean);
+      var targetPath = '/';
+      if (pathSegments.length > 0) {
+        if (pathSegments[1] === 'docs') {
+          targetPath = '/' + pathSegments[0] + '/docs/';
+        } else {
+          targetPath = '/' + pathSegments[0] + '/';
+        }
+      }
+      location.replace(targetPath);
     </script>
   </head>
   <body>
