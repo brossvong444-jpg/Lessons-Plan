@@ -1,4 +1,6 @@
 import { LessonIllustration } from '../types/lessonPlan';
+import { buildExcelIllustration } from './excelIllustrationBuilder';
+import { buildMathIllustration } from './mathIllustrationBuilder';
 
 // Generates an educational AI prompt tailored to the topic and subject
 export function buildIllustrationPrompt(topic: string, subject: string = 'គណិតវិទ្យា', grade: string = 'ថ្នាក់ទី ៩'): string {
@@ -34,100 +36,41 @@ export function generateTopicIllustration(topic: string, subject: string = 'គ�
   const cleanTopic = topic.trim();
   const prompt = buildIllustrationPrompt(topic, subject, grade);
 
-  // 1. Math: Quadratic / Parabola / Geometry / Equation
-  if (s.includes('គណិត') || t.includes('សមីការ') || t.includes('ឌីសគ្រី') || t.includes('ធរណី') || t.includes('ប្រមាណ')) {
-    const isQuadratic = t.includes('ដឺក្រេ') || t.includes('ឌីសគ្រី') || t.includes('សមីការ');
-    const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="100%" height="100%">
-      <defs>
-        <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#0f172a" />
-          <stop offset="50%" stop-color="#1e293b" />
-          <stop offset="100%" stop-color="#0f172a" />
-        </linearGradient>
-        <linearGradient id="curveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#38bdf8" />
-          <stop offset="50%" stop-color="#60a5fa" />
-          <stop offset="100%" stop-color="#818cf8" />
-        </linearGradient>
-        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#334155" stroke-width="0.7" opacity="0.6" />
-        </pattern>
-      </defs>
-      
-      <!-- Background -->
-      <rect width="800" height="450" fill="url(#bgGrad)" rx="16" />
-      <rect width="800" height="450" fill="url(#grid)" rx="16" />
-      
-      <!-- Header Badge -->
-      <g transform="translate(40, 35)">
-        <rect width="260" height="34" rx="17" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5" opacity="0.9" />
-        <circle cx="20" cy="17" r="7" fill="#38bdf8" />
-        <text x="36" y="22" font-family="'Kantumruy Pro', sans-serif" font-size="13" font-weight="bold" fill="#f8fafc">គំនូសបំព្រួញគរុកោសល្យ៖ គណិតវិទ្យា</text>
-      </g>
-      
-      <!-- Coordinate Axes -->
-      <!-- X-Axis -->
-      <line x1="80" y1="260" x2="720" y2="260" stroke="#94a3b8" stroke-width="2.5" />
-      <polygon points="725,260 715,255 715,265" fill="#94a3b8" />
-      <text x="732" y="265" font-family="sans-serif" font-size="15" font-weight="bold" fill="#38bdf8">x</text>
-      
-      <!-- Y-Axis -->
-      <line x1="400" y1="390" x2="400" y2="70" stroke="#94a3b8" stroke-width="2.5" />
-      <polygon points="400,65 395,75 405,75" fill="#94a3b8" />
-      <text x="408" y="75" font-family="sans-serif" font-size="15" font-weight="bold" fill="#38bdf8">y</text>
-      
-      <!-- Origin -->
-      <text x="382" y="278" font-family="sans-serif" font-size="13" fill="#cbd5e1">O</text>
+  // 0. ICT / Excel / Spreadsheet / Computer Science / Technology
+  if (
+    s.includes('ict') ||
+    s.includes('កុំព្យូទ័រ') ||
+    s.includes('បច្ចេកវិទ្យា') ||
+    t.includes('excel') ||
+    t.includes('spreadsheet') ||
+    t.includes('countifs') ||
+    t.includes('countblank') ||
+    t.includes('countif') ||
+    t.includes('sumif') ||
+    t.includes('sumifs') ||
+    t.includes('vlookup') ||
+    t.includes('xlookup') ||
+    t.includes('averageif') ||
+    t.includes('រូបមន្ត') ||
+    t.includes('coding') ||
+    t.includes('កូដ') ||
+    t.includes('តារាង')
+  ) {
+    return buildExcelIllustration(cleanTopic, prompt);
+  }
 
-      ${isQuadratic ? `
-      <!-- Parabola Curve y = ax^2 + bx + c -->
-      <path d="M 180 90 Q 400 370 620 90" fill="none" stroke="url(#curveGrad)" stroke-width="4.5" stroke-linecap="round" />
-      
-      <!-- Roots Points on X Axis -->
-      <circle cx="270" cy="260" r="6" fill="#ef4444" stroke="#ffffff" stroke-width="2" />
-      <text x="255" y="290" font-family="'Kantumruy Pro', sans-serif" font-size="13" font-weight="bold" fill="#fca5a5">ឫស x₁</text>
-      
-      <circle cx="530" cy="260" r="6" fill="#ef4444" stroke="#ffffff" stroke-width="2" />
-      <text x="515" y="290" font-family="'Kantumruy Pro', sans-serif" font-size="13" font-weight="bold" fill="#fca5a5">ឫស x₂</text>
-
-      <!-- Vertex Point -->
-      <circle cx="400" cy="230" r="5" fill="#10b981" stroke="#ffffff" stroke-width="2" />
-      <text x="412" y="225" font-family="'Kantumruy Pro', sans-serif" font-size="12" fill="#6ee7b7">កំពូល S(-b/2a, -Δ/4a)</text>
-      ` : `
-      <!-- Linear / General Equation line -->
-      <line x1="120" y1="360" x2="680" y2="120" stroke="url(#curveGrad)" stroke-width="4" stroke-linecap="round" />
-      <circle cx="400" cy="240" r="6" fill="#ef4444" stroke="#ffffff" stroke-width="2" />
-      `}
-      
-      <!-- Formula Info Card on Right -->
-      <g transform="translate(510, 85)">
-        <rect width="250" height="135" rx="12" fill="#1e293b" stroke="#475569" stroke-width="1.5" opacity="0.95" />
-        <rect width="250" height="28" rx="12" fill="#2563eb" />
-        <rect x="0" y="16" width="250" height="12" fill="#2563eb" />
-        <text x="12" y="20" font-family="'Kantumruy Pro', sans-serif" font-size="12" font-weight="bold" fill="#ffffff">📊 រូបមន្តស្នូល និងលក្ខខណ្ឌ</text>
-        <text x="15" y="55" font-family="sans-serif" font-size="15" font-weight="bold" fill="#38bdf8">ax² + bx + c = 0</text>
-        <text x="15" y="80" font-family="sans-serif" font-size="14" font-weight="bold" fill="#fbbf24">Δ = b² - 4ac</text>
-        <text x="15" y="105" font-family="'Kantumruy Pro', sans-serif" font-size="11" fill="#cbd5e1">• Δ &gt; 0 ៖ មានឫសពីរផ្សេងគ្នា</text>
-        <text x="15" y="123" font-family="'Kantumruy Pro', sans-serif" font-size="11" fill="#cbd5e1">• Δ = 0 ៖ ឫសឌុប x = -b/2a</text>
-      </g>
-      
-      <!-- Bottom Topic Banner -->
-      <g transform="translate(40, 395)">
-        <rect width="720" height="38" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1" />
-        <text x="20" y="24" font-family="'Kantumruy Pro', sans-serif" font-size="13" font-weight="bold" fill="#38bdf8">ប្រធានបទ៖</text>
-        <text x="100" y="24" font-family="'Kantumruy Pro', sans-serif" font-size="13" font-weight="semibold" fill="#f8fafc">${cleanTopic}</text>
-      </g>
-    </svg>`;
-    return {
-      id: 'ill-' + Date.now(),
-      url: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`,
-      caption: `ដ្យាក្រាមគំនូសបំព្រួញគរុកោសល្យ៖ ${cleanTopic}`,
-      prompt,
-      type: 'ai',
-      aspectRatio: '16:9',
-      showInStep3: true,
-    };
+  // 1. Math: Pythagoras / Geometry / Quadratic / Equation
+  if (
+    s.includes('គណិត') ||
+    t.includes('សមីការ') ||
+    t.includes('ឌីសគ្រី') ||
+    t.includes('ធរណី') ||
+    t.includes('ប្រមាណ') ||
+    t.includes('ពីតាគ័រ') ||
+    t.includes('pythagor') ||
+    t.includes('ត្រីកោណ')
+  ) {
+    return buildMathIllustration(cleanTopic, prompt);
   }
 
   // 2. Physics: Ohm's Law / Electric Circuit / Force / Energy
@@ -385,92 +328,7 @@ export function generateTopicIllustration(topic: string, subject: string = 'គ�
 
   // 5. ICT / Excel / Coding / Tech
   if (s.includes('ict') || s.includes('កុំព្យូទ័រ') || t.includes('excel') || t.includes('coding') || t.includes('កូដ') || t.includes('ai') || t.includes('ទិន្នន័យ')) {
-    const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="100%" height="100%">
-      <defs>
-        <linearGradient id="ictBg" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#022c22" />
-          <stop offset="50%" stop-color="#064e3b" />
-          <stop offset="100%" stop-color="#0f172a" />
-        </linearGradient>
-      </defs>
-      <rect width="800" height="450" fill="url(#ictBg)" rx="16" />
-      
-      <!-- Header Badge -->
-      <g transform="translate(40, 35)">
-        <rect width="300" height="34" rx="17" fill="#065f46" stroke="#34d399" stroke-width="1.5" />
-        <circle cx="20" cy="17" r="7" fill="#34d399" />
-        <text x="36" y="22" font-family="'Kantumruy Pro', sans-serif" font-size="13" font-weight="bold" fill="#f8fafc">ចំណុចប្រទាក់តារាងទិន្នន័យ៖ ICT</text>
-      </g>
-      
-      <!-- Spreadsheet Window -->
-      <g transform="translate(60, 95)">
-        <rect width="680" height="270" rx="10" fill="#0f172a" stroke="#10b981" stroke-width="2" />
-        <!-- Window title bar -->
-        <rect width="680" height="30" rx="10" fill="#1e293b" />
-        <rect x="0" y="20" width="680" height="10" fill="#1e293b" />
-        <circle cx="20" cy="15" r="5" fill="#ef4444" />
-        <circle cx="35" cy="15" r="5" fill="#f59e0b" />
-        <circle cx="50" cy="15" r="5" fill="#10b981" />
-        <text x="80" y="20" font-family="sans-serif" font-size="12" fill="#94a3b8">Microsoft Excel / Google Sheets - [Book1.xlsx]</text>
-        
-        <!-- Formula Bar -->
-        <rect x="15" y="40" width="650" height="32" rx="5" fill="#1e293b" stroke="#334155" />
-        <text x="25" y="61" font-family="sans-serif" font-size="13" font-weight="bold" fill="#10b981">fx</text>
-        <line x1="48" y1="45" x2="48" y2="67" stroke="#475569" />
-        <text x="60" y="61" font-family="monospace" font-size="13" font-weight="bold" fill="#f8fafc">=IF(AVERAGE(C2:E2)&gt;=50, "ជាប់", "ធ្លាក់")</text>
-        
-        <!-- Table Header (Columns A, B, C, D, E, F) -->
-        <rect x="15" y="85" width="650" height="26" fill="#047857" />
-        <text x="35" y="103" font-family="sans-serif" font-size="12" font-weight="bold" fill="#ffffff">A (ឈ្មោះ)</text>
-        <text x="140" y="103" font-family="sans-serif" font-size="12" font-weight="bold" fill="#ffffff">B (ថ្នាក់)</text>
-        <text x="230" y="103" font-family="sans-serif" font-size="12" font-weight="bold" fill="#ffffff">C (គណិត)</text>
-        <text x="330" y="103" font-family="sans-serif" font-size="12" font-weight="bold" fill="#ffffff">D (រូប)</text>
-        <text x="430" y="103" font-family="sans-serif" font-size="12" font-weight="bold" fill="#ffffff">E (សរុប =SUM)</text>
-        <text x="550" y="103" font-family="sans-serif" font-size="12" font-weight="bold" fill="#ffffff">F (លទ្ធផល =IF)</text>
-        
-        <!-- Data Row 1 -->
-        <rect x="15" y="115" width="650" height="26" fill="#1e293b" />
-        <text x="35" y="133" font-family="'Kantumruy Pro', sans-serif" font-size="12" fill="#f8fafc">សុខ ចិន្តា</text>
-        <text x="140" y="133" font-family="sans-serif" font-size="12" fill="#cbd5e1">10A</text>
-        <text x="245" y="133" font-family="sans-serif" font-size="12" fill="#cbd5e1">85</text>
-        <text x="345" y="133" font-family="sans-serif" font-size="12" fill="#cbd5e1">78</text>
-        <text x="455" y="133" font-family="sans-serif" font-size="12" font-weight="bold" fill="#38bdf8">163</text>
-        <rect x="550" y="120" width="55" height="18" rx="4" fill="#065f46" />
-        <text x="560" y="133" font-family="'Kantumruy Pro', sans-serif" font-size="11" font-weight="bold" fill="#34d399">ជាប់</text>
-
-        <!-- Data Row 2 -->
-        <rect x="15" y="145" width="650" height="26" fill="#0f172a" />
-        <text x="35" y="163" font-family="'Kantumruy Pro', sans-serif" font-size="12" fill="#f8fafc">ចាន់ វិបុល</text>
-        <text x="140" y="163" font-family="sans-serif" font-size="12" fill="#cbd5e1">10A</text>
-        <text x="245" y="163" font-family="sans-serif" font-size="12" fill="#cbd5e1">45</text>
-        <text x="345" y="163" font-family="sans-serif" font-size="12" fill="#cbd5e1">40</text>
-        <text x="455" y="163" font-family="sans-serif" font-size="12" font-weight="bold" fill="#38bdf8">85</text>
-        <rect x="550" y="150" width="55" height="18" rx="4" fill="#881337" />
-        <text x="557" y="163" font-family="'Kantumruy Pro', sans-serif" font-size="11" font-weight="bold" fill="#fda4af">ធ្លាក់</text>
-
-        <!-- Quick Summary Box -->
-        <rect x="15" y="185" width="650" height="65" rx="6" fill="#134e4a" opacity="0.6" />
-        <text x="35" y="210" font-family="'Kantumruy Pro', sans-serif" font-size="12" font-weight="bold" fill="#34d399">💡 រូបមន្តគន្លឹះត្រូវចងចាំ៖</text>
-        <text x="35" y="235" font-family="monospace" font-size="12" fill="#f8fafc">=SUM(range) | =AVERAGE(range) | =IF(logical_test, value_if_true, value_if_false)</text>
-      </g>
-      
-      <!-- Bottom Topic Banner -->
-      <g transform="translate(40, 395)">
-        <rect width="720" height="38" rx="8" fill="#064e3b" stroke="#10b981" stroke-width="1" />
-        <text x="20" y="24" font-family="'Kantumruy Pro', sans-serif" font-size="13" font-weight="bold" fill="#34d399">ប្រធានបទ៖</text>
-        <text x="100" y="24" font-family="'Kantumruy Pro', sans-serif" font-size="13" font-weight="semibold" fill="#f8fafc">${cleanTopic}</text>
-      </g>
-    </svg>`;
-    return {
-      id: 'ill-' + Date.now(),
-      url: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`,
-      caption: `រូបភាពគំរូទម្រង់កម្មវិធី និងរូបមន្តគណនា៖ ${cleanTopic}`,
-      prompt,
-      type: 'ai',
-      aspectRatio: '16:9',
-      showInStep3: true,
-    };
+    return buildExcelIllustration(cleanTopic, prompt);
   }
 
   // 6. Biology: Cell / Photosynthesis / Genetics / Living Things

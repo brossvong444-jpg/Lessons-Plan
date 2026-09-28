@@ -648,9 +648,7 @@ if (process.env.NODE_ENV === 'production') {
   const vite = await createViteServer({
     server: {
       middlewareMode: true,
-      // Attach the HMR WebSocket to the same HTTP server so the upgrade is
-      // handled on the same port (required behind the v0 preview proxy).
-      ws: { server: httpServer },
+      hmr: { server: httpServer },
     },
     appType: 'spa',
   });

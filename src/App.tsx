@@ -13,6 +13,7 @@ import { HistoryDrawer } from './components/HistoryDrawer';
 import { SAMPLE_LESSON_PLANS } from './data/sampleLessonPlans';
 import { LessonPlanData, GenerateLessonPlanRequest } from './types/lessonPlan';
 import { generateTopicIllustration } from './utils/illustrationEngine';
+import { buildTopicAlignedLessonPlan } from '../curriculumEngine';
 import { FileCheck, Sparkles, AlertCircle, HelpCircle, ArrowDown } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -94,18 +95,29 @@ export default function App() {
   const handleGenerate = async (reqData: GenerateLessonPlanRequest) => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/generate-lesson-plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(reqData),
-      });
+      let populatedPlan: LessonPlanData;
 
-      if (!response.ok) {
-        throw new Error('បរាជ័យក្នុងការបង្កើតកិច្ចតែងការ');
+      try {
+        const response = await fetch('/api/generate-lesson-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reqData),
+        });
+
+        if (response.ok) {
+          const newPlan: LessonPlanData = await response.json();
+          populatedPlan = ensurePlanIllustration(newPlan);
+        } else {
+          // Fallback to client-side curriculum engine (for static hosting like GitHub Pages)
+          const fallbackPlan = buildTopicAlignedLessonPlan(reqData);
+          populatedPlan = ensurePlanIllustration(fallbackPlan);
+        }
+      } catch {
+        // Network / 404 error fallback (e.g. GitHub Pages without Express backend)
+        const fallbackPlan = buildTopicAlignedLessonPlan(reqData);
+        populatedPlan = ensurePlanIllustration(fallbackPlan);
       }
 
-      const newPlan: LessonPlanData = await response.json();
-      const populatedPlan = ensurePlanIllustration(newPlan);
       setCurrentPlan(populatedPlan);
 
       // Save to saved plans automatically
