@@ -10,11 +10,13 @@ import { LessonPlanPreview } from './components/LessonPlanPreview';
 import { ExportToolbar } from './components/ExportToolbar';
 import { StepRefineModal } from './components/StepRefineModal';
 import { HistoryDrawer } from './components/HistoryDrawer';
+import { AboutOwnerModal } from './components/AboutOwnerModal';
 import { SAMPLE_LESSON_PLANS } from './data/sampleLessonPlans';
 import { LessonPlanData, GenerateLessonPlanRequest } from './types/lessonPlan';
 import { generateTopicIllustration } from './utils/illustrationEngine';
 import { buildTopicAlignedLessonPlan } from '../curriculumEngine';
-import { FileCheck, Sparkles, AlertCircle, HelpCircle, ArrowDown } from 'lucide-react';
+import { useLanguage } from './i18n/LanguageContext';
+import { FileCheck, Sparkles, AlertCircle, HelpCircle, ArrowDown, ShieldCheck, Heart } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 const STORAGE_KEY = 'khmer_saved_lesson_plans_v1';
@@ -31,6 +33,9 @@ function ensurePlanIllustration(p: LessonPlanData): LessonPlanData {
 }
 
 export default function App() {
+  const { t, language } = useLanguage();
+  const [isAboutOwnerOpen, setIsAboutOwnerOpen] = useState(false);
+
   const [currentPlan, setCurrentPlan] = useState<LessonPlanData>(() => {
     // Check if there are saved plans, or default to first sample
     try {
@@ -206,6 +211,7 @@ export default function App() {
         onNewPlan={handleNewPlan}
         savedCount={savedPlans.length}
         onOpenHistory={() => setIsHistoryOpen(true)}
+        onOpenAboutOwner={() => setIsAboutOwnerOpen(true)}
       />
 
       {/* Floating Toast Notification */}
@@ -221,17 +227,36 @@ export default function App() {
         {/* Hero / Intro Banner */}
         <section className="no-print relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-6 sm:p-8 shadow-lg">
           <div className="relative z-10 max-w-3xl space-y-3">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 text-xs font-semibold backdrop-blur-xs">
-              <Sparkles className="w-3.5 h-3.5 text-blue-300" />
-              <span>ប្រព័ន្ធបញ្ញាសិប្បនិម្មិតជំនួយគ្រូបង្រៀនកម្ពុជា</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 text-xs font-semibold backdrop-blur-xs">
+                <Sparkles className="w-3.5 h-3.5 text-blue-300" />
+                <span>{language === 'km' ? 'ប្រព័ន្ធបញ្ញាសិប្បនិម្មិតជំនួយគ្រូបង្រៀនកម្ពុជា' : 'Cambodia AI Teacher Pedagogical Assistant'}</span>
+              </div>
+              <button
+                onClick={() => setIsAboutOwnerOpen(true)}
+                className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-amber-400/20 hover:bg-amber-400/30 border border-amber-300/40 text-amber-200 text-xs font-semibold transition"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-300" />
+                <span>{t.ownerBadge}</span>
+              </button>
             </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black font-moul tracking-wide leading-tight">
-              បង្កើតកិច្ចតែងការបង្រៀនត្រឹមត្រូវតាមស្តង់ដារ MoEYS
+              {language === 'km' ? 'បង្កើតកិច្ចតែងការបង្រៀនត្រឹមត្រូវតាមស្តង់ដារ MoEYS' : 'Generate MoEYS-Compliant Lesson Plans'}
             </h2>
             <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-              គ្រាន់តែបញ្ចូលប្រធានបទមេរៀន ប្រព័ន្ធ AI នឹងរៀបចំជូននូវកិច្ចតែងការពេញលេញ រួមមាន
-              វត្ថុបំណង ៣ ដែន (ចំណេះដឹង បំណិន ឥរិយាបថ), សម្ភារឧបទេស, និងដំណាក់កាលបង្រៀន ៥ ជំហាន
-              ព្រមទាំងអាចទាញយកជាឯកសារ <strong>Word (.docx)</strong> និង <strong>PDF</strong> បានភ្លាមៗ!
+              {language === 'km' ? (
+                <>
+                  គ្រាន់តែបញ្ចូលប្រធានបទមេរៀន ប្រព័ន្ធ AI នឹងរៀបចំជូននូវកិច្ចតែងការពេញលេញ រួមមាន
+                  វត្ថុបំណង ៣ ដែន (ចំណេះដឹង បំណិន ឥរិយាបថ), សម្ភារឧបទេស, និងដំណាក់កាលបង្រៀន ៥ ជំហាន
+                  ព្រមទាំងអាចទាញយកជាឯកសារ <strong>Word (.docx)</strong> និង <strong>PDF</strong> បានភ្លាមៗ!
+                </>
+              ) : (
+                <>
+                  Simply enter a lesson topic, and the system instantly generates a comprehensive pedagogical
+                  lesson plan including 3-domain learning objectives, teaching materials, 5-step instructional process,
+                  and export ready for <strong>Word (.docx)</strong> and <strong>PDF</strong>!
+                </>
+              )}
             </p>
           </div>
           {/* Subtle decoration background pattern */}
@@ -248,7 +273,7 @@ export default function App() {
         {/* Arrow pointer to preview if plan exists */}
         <div className="no-print flex items-center justify-center pt-2">
           <div className="inline-flex items-center space-x-2 text-xs font-medium text-slate-500 bg-white px-4 py-1.5 rounded-full border border-slate-200 shadow-2xs">
-            <span>ពិនិត្យមើល និងទាញយកលទ្ធផលខាងក្រោម</span>
+            <span>{language === 'km' ? 'ពិនិត្យមើល និងទាញយកលទ្ធផលខាងក្រោម' : 'Preview and export your lesson plan below'}</span>
             <ArrowDown className="w-3.5 h-3.5 text-blue-600 animate-bounce" />
           </div>
         </div>
@@ -260,7 +285,7 @@ export default function App() {
               ២
             </span>
             <h2 className="text-lg font-bold text-slate-800">
-              កន្លែងទាញយកឯកសារ (Word & PDF) និង កែសម្រួល
+              {language === 'km' ? 'កន្លែងទាញយកឯកសារ (Word & PDF) និង កែសម្រួល' : 'Export Toolbar (Word & PDF) and Edit Content'}
             </h2>
           </div>
           <ExportToolbar
@@ -274,8 +299,8 @@ export default function App() {
               setIsPrintFriendly(next);
               showToast(
                 next
-                  ? 'បានបើកទម្រង់ Print-Friendly (សន្សំទឹកថ្នាំ ស-ខ្មៅ)'
-                  : 'បានបិទទម្រង់ Print-Friendly',
+                  ? (language === 'km' ? 'បានបើកទម្រង់ Print-Friendly (សន្សំទឹកថ្នាំ ស-ខ្មៅ)' : 'Print-Friendly mode enabled')
+                  : (language === 'km' ? 'បានបិទទម្រង់ Print-Friendly' : 'Print-Friendly mode disabled'),
               );
             }}
           />
@@ -290,20 +315,20 @@ export default function App() {
               </span>
               <div>
                 <h2 className="text-lg font-bold text-slate-800">
-                  កន្លែងពិនិត្យមើលលទ្ធផល (ទម្រង់ A4 ស្តង់ដារ)
+                  {t.section3Title}
                 </h2>
                 <p className="text-xs text-slate-500">
                   {isEditing
-                    ? 'កំពុងស្ថិតក្នុងទម្រង់កែសម្រួល៖ អ្នកអាចចុចលើប្រអប់អត្ថបទនីមួយៗដើម្បីកែសម្រួលបាន'
+                    ? t.editingModeHint
                     : isPrintFriendly
-                    ? 'កំពុងស្ថិតក្នុងទម្រង់ Print-Friendly (កម្រិតពណ៌ស-ខ្មៅ សន្សំទឹកថ្នាំម៉ាស៊ីនព្រីន)'
-                    : 'អ្នកអាចចុចប៊ូតុង "កែសម្រួលខ្លឹមសារ" ខាងលើដើម្បីផ្លាស់ប្ដូរអត្ថបទ ឬប្រើ AI ជំនួយ'}
+                    ? t.printFriendlyModeHint
+                    : t.normalModeHint}
                 </p>
               </div>
             </div>
 
             <div className="text-xs text-slate-500 italic">
-              បង្ហាញតាមទម្រង់ផ្លូវការ គំរូកិច្ចតែងការក្រសួងអប់រំ យុវជន និងកីឡា
+              {t.moeysStandardNote}
             </div>
           </div>
 
@@ -317,17 +342,50 @@ export default function App() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="no-print mt-16 bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p>
-            កម្មវិធីបង្កើតកិច្ចតែងការគ្រូបង្រៀន • បង្កើតឡើងដើម្បីគាំទ្រលោកគ្រូ អ្នកគ្រូទូទាំងប្រទេសកម្ពុជា
-          </p>
-          <p className="text-slate-400">
-            គាំទ្រការទាញយកជាទម្រង់ <strong>Microsoft Word (.docx)</strong> និង <strong>PDF</strong>
-          </p>
+      {/* Footer with Creator / Owner rights */}
+      <footer className="no-print mt-16 bg-white border-t border-slate-200 py-8 text-center text-xs text-slate-600">
+        <div className="max-w-7xl mx-auto px-4 space-y-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                <ShieldCheck className="w-5 h-5 text-amber-600" />
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-slate-800 text-sm">
+                  {t.ownerName}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {t.ownerRole} • Email: <a href="mailto:brossvong444@gmail.com" className="text-blue-600 hover:underline">brossvong444@gmail.com</a>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setIsAboutOwnerOpen(true)}
+                className="px-3.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold border border-slate-200 transition"
+              >
+                {t.aboutOwnerBtn}
+              </button>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2 text-slate-400">
+            <p>
+              {t.footerRights}
+            </p>
+            <p>
+              {t.footerFormats}
+            </p>
+          </div>
         </div>
       </footer>
+
+      {/* About App Owner Modal */}
+      <AboutOwnerModal
+        isOpen={isAboutOwnerOpen}
+        onClose={() => setIsAboutOwnerOpen(false)}
+      />
 
       {/* History Drawer */}
       <HistoryDrawer

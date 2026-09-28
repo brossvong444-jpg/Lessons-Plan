@@ -119,6 +119,9 @@ export async function exportLessonPlanToDocx(plan: LessonPlanData): Promise<Blob
 
   // Header paragraphs
   const doc = new Document({
+    creator: 'ឡោម មនីវង្ស (Lorm Monyvong)',
+    title: `កិច្ចតែងការបង្រៀន - ${h.topic || ''} - ឡោម មនីវង្ស`,
+    description: 'កិច្ចតែងការបង្រៀនស្តង់ដារ MoEYS បង្កើតដោយកម្មវិធី Khmer Teacher Lesson Plan AI របស់ ឡោម មនីវង្ស',
     sections: [
       {
         properties: {
@@ -744,6 +747,20 @@ export async function exportLessonPlanToDocx(plan: LessonPlanData): Promise<Blob
                 ),
               ]
             : []),
+
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 240, after: 60 },
+            children: [
+              new TextRun({
+                text: '— កម្មវិធីបង្កើតកិច្ចតែងការបង្រៀន AI • រក្សាសិទ្ធិដោយ ឡោម មនីវង្ស (Lorm Monyvong) —',
+                font: 'Kantumruy Pro',
+                size: 16,
+                italics: true,
+                color: '64748B',
+              }),
+            ],
+          }),
         ],
       },
     ],

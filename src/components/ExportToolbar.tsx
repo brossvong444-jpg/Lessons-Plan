@@ -14,6 +14,7 @@ import {
 import { LessonPlanData } from '../types/lessonPlan';
 import { exportLessonPlanToDocx, downloadBlob } from '../utils/docxExport';
 import { exportLessonPlanToPdf } from '../utils/pdfExport';
+import { useLanguage } from '../i18n/LanguageContext';
 import confetti from 'canvas-confetti';
 
 interface ExportToolbarProps {
@@ -33,6 +34,7 @@ export const ExportToolbar: React.FC<ExportToolbarProps> = ({
   isPrintFriendly,
   onTogglePrintFriendly,
 }) => {
+  const { t, language } = useLanguage();
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -172,10 +174,10 @@ ${
           </div>
           <div>
             <h3 className="font-bold text-slate-800 text-sm sm:text-base">
-              កិច្ចតែងការរួចរាល់សម្រាប់ទាញយក
+              {language === 'km' ? 'កិច្ចតែងការរួចរាល់សម្រាប់ទាញយក' : 'Lesson Plan Ready for Export'}
             </h3>
             <p className="text-xs text-slate-500">
-              ទម្រង់ MoEYS • អាចកែសម្រួលបានភ្លាមៗ ឬទាញយកជា Word / PDF
+              {t.moeysStandardNote}
             </p>
           </div>
         </div>
@@ -194,12 +196,12 @@ ${
             {isEditing ? (
               <>
                 <Eye className="w-4 h-4" />
-                <span>មើលជាទម្រង់ចុងក្រោយ</span>
+                <span>{t.saveEditsBtn}</span>
               </>
             ) : (
               <>
                 <Edit3 className="w-4 h-4" />
-                <span>កែសម្រួលខ្លឹមសារ</span>
+                <span>{t.editContentBtn}</span>
               </>
             )}
           </button>
@@ -212,10 +214,10 @@ ${
                 ? 'bg-slate-900 text-white border-slate-950 shadow-sm ring-2 ring-slate-800'
                 : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-300'
             }`}
-            title="បិទ/បើកទម្រង់ស-ខ្មៅ (High-Contrast B&W) សន្សំទឹកថ្នាំសម្រាប់ម៉ាស៊ីនព្រីន ឬថតចម្លង"
+            title="Print-Friendly (High-Contrast B&W)"
           >
             <Contrast className={`w-4 h-4 ${isPrintFriendly ? 'text-amber-300' : 'text-slate-600'}`} />
-            <span>{isPrintFriendly ? 'Print-Friendly (ស-ខ្មៅ)' : 'Print-Friendly'}</span>
+            <span>{isPrintFriendly ? `${t.printFriendlyBtn} (ស-ខ្មៅ)` : t.printFriendlyBtn}</span>
             {isPrintFriendly && (
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-0.5"></span>
             )}
@@ -225,17 +227,17 @@ ${
           <button
             onClick={handleCopyText}
             className="flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-300 transition"
-            title="ចម្លងអត្ថបទទាំងអស់"
+            title="Copy Text"
           >
             {copied ? (
               <>
                 <Check className="w-4 h-4 text-emerald-600" />
-                <span className="text-emerald-700 font-semibold">បានចម្លង!</span>
+                <span className="text-emerald-700 font-semibold">{language === 'km' ? 'បានចម្លង!' : 'Copied!'}</span>
               </>
             ) : (
               <>
                 <Copy className="w-4 h-4 text-slate-500" />
-                <span>ចម្លងអត្ថបទ</span>
+                <span>{language === 'km' ? 'ចម្លងអត្ថបទ' : 'Copy Text'}</span>
               </>
             )}
           </button>
@@ -244,10 +246,10 @@ ${
           <button
             onClick={handleDirectPrint}
             className="flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-300 transition"
-            title="បោះពុម្ពឯកសារផ្ទាល់"
+            title="Direct Print"
           >
             <Printer className="w-4 h-4 text-slate-600" />
-            <span>បោះពុម្ព</span>
+            <span>{language === 'km' ? 'បោះពុម្ព' : 'Print'}</span>
           </button>
 
           {/* PDF Download Button */}
@@ -255,7 +257,7 @@ ${
             onClick={handleExportPDF}
             disabled={isExportingPdf}
             className="flex items-center space-x-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 disabled:opacity-50 transition shadow-sm hover:shadow"
-            title="ទាញយកជាទម្រង់ PDF (File .pdf)"
+            title={t.exportPdfBtn}
           >
             {isExportingPdf ? (
               <>
@@ -267,12 +269,12 @@ ${
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                <span>កំពុងទាញយក PDF...</span>
+                <span>{t.exportingPdf}</span>
               </>
             ) : (
               <>
                 <FileDown className="w-4 h-4" />
-                <span>ទាញយកជា PDF</span>
+                <span>{t.exportPdfBtn}</span>
               </>
             )}
           </button>
@@ -282,7 +284,7 @@ ${
             onClick={handleExportDocx}
             disabled={isExportingDocx}
             className="flex items-center space-x-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 transition shadow-sm hover:shadow"
-            title="ទាញយកជាទម្រង់ Microsoft Word (.docx)"
+            title={t.exportWordBtn}
           >
             {isExportingDocx ? (
               <>
@@ -294,12 +296,12 @@ ${
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                <span>កំពុងបង្កើត Word...</span>
+                <span>{t.exportingWord}</span>
               </>
             ) : (
               <>
                 <FileDown className="w-4 h-4" />
-                <span>ទាញយកជា Word (.docx)</span>
+                <span>{t.exportWordBtn}</span>
               </>
             )}
           </button>

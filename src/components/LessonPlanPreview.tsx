@@ -1135,6 +1135,15 @@ export const LessonPlanPreview: React.FC<LessonPlanPreviewProps> = ({
             }
           />
         </div>
+
+        {/* Creator & App Owner Attribution Footnote */}
+        <div className={`mt-6 pt-3 border-t text-center text-[11px] sm:text-xs ${
+          isPrintFriendly ? 'border-black/30 text-black/70' : 'border-slate-200 text-slate-400'
+        }`}>
+          <p className="font-medium tracking-wide">
+            កិច្ចតែងការបង្រៀនស្តង់ដារ MoEYS • បង្កើតដោយកម្មវិធី Khmer Teacher Lesson Plan AI • រក្សាសិទ្ធិដោយ <span className="font-bold text-slate-600">ឡោម មនីវង្ស (Lorm Monyvong)</span> © ២០២៦
+          </p>
+        </div>
       </div>
     </div>
   );
