@@ -1,0 +1,8 @@
+{
+  "name": "Khmer Teacher Lesson Plan AI - កម្មវិធីបង្កើតកិច្ចតែងការបង្រៀន",
+  "description": "កម្មវិធីបង្កើតកិច្ចតែងការបង្រៀនបែបស្វ័យប្រវត្តិតាមស្តង់ដារក្រសួងអប់រំ យុវជន និងកីឡា (MoEYS) ដោយគ្រាន់តែបញ្ចូលប្រធានបទ រួចអាចកែសម្រួល ទាញយកជា PDF និង Word (.docx) បានភ្លាមៗ",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
