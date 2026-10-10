@@ -1,7 +1,40 @@
-import React, { useState } from 'react';
-import { Sparkles, BookOpen, Clock, User, School, Wand2, ChevronDown, ChevronUp, CheckCircle2, Gauge, PenTool, Lightbulb, Users, Compass, Target, Image as ImageIcon } from 'lucide-react';
-import { GenerateLessonPlanRequest } from '../types/lessonPlan';
+import React, { useState, useRef } from 'react';
+import {
+  Sparkles,
+  BookOpen,
+  Clock,
+  User,
+  School,
+  Wand2,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle2,
+  Gauge,
+  PenTool,
+  Lightbulb,
+  Users,
+  Compass,
+  Target,
+  Image as ImageIcon,
+  FileText,
+  RotateCcw,
+  UploadCloud,
+  FileUp,
+  X,
+  File,
+  AlertCircle,
+  Check,
+  Loader2,
+  BookMarked,
+  Search,
+  Layers,
+  FileCheck2,
+  ArrowRight,
+} from 'lucide-react';
+import { GenerateLessonPlanRequest, UploadedLessonFile, BookOutlineItem } from '../types/lessonPlan';
 import { calculateStepDurations } from '../utils/durationHelper';
+import { useLanguage } from '../i18n/LanguageContext';
+import { VoiceMicButton } from './VoiceMicButton';
 
 interface LessonPlanFormProps {
   onGenerate: (data: GenerateLessonPlanRequest) => Promise<void>;
@@ -330,12 +363,15 @@ export const LessonPlanForm: React.FC<LessonPlanFormProps> = ({
   onGenerate,
   isLoading,
 }) => {
+  const { t, language } = useLanguage();
   const [topic, setTopic] = useState('');
+  const [customLessonContent, setCustomLessonContent] = useState('');
   const [subject, setSubject] = useState('គណិតវិទ្យា');
   const [grade, setGrade] = useState('ថ្នាក់ទី ៩');
   const [duration, setDuration] = useState('៥០ នាទី (១ ម៉ោងសិក្សា)');
   const [chapter, setChapter] = useState('');
   const [lessonNo, setLessonNo] = useState('');
+  const [targetPage, setTargetPage] = useState('');
   const [teacherName, setTeacherName] = useState(() => localStorage.getItem('khmer_teacher_name') || 'គ្រូបង្រៀន');
   const [schoolName, setSchoolName] = useState(() => localStorage.getItem('khmer_school_name') || 'វិទ្យាល័យ / អនុវិទ្យាល័យ');
   const [focusKeywords, setFocusKeywords] = useState('');
@@ -346,32 +382,227 @@ export const LessonPlanForm: React.FC<LessonPlanFormProps> = ({
   const [includeIllustration, setIncludeIllustration] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  // File Upload State
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedLessonFile[]>([]);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [selectedOutlineIdx, setSelectedOutlineIdx] = useState<number | null>(null);
+  const [showExtractedPreview, setShowExtractedPreview] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFiles = async (files: FileList | File[]) => {
+    if (!files || files.length === 0) return;
+    setIsScanning(true);
+    setScanError(null);
+
+    const newFiles: UploadedLessonFile[] = [...uploadedFiles];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        const base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const res = (reader.result as string) || '';
+            const commaIdx = res.indexOf(',');
+            resolve(commaIdx >= 0 ? res.substring(commaIdx + 1) : res);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        const mime = file.type || (
+          file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' :
+          file.name.toLowerCase().endsWith('.docx') ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' :
+          file.name.toLowerCase().endsWith('.txt') ? 'text/plain' :
+          file.name.toLowerCase().endsWith('.md') ? 'text/markdown' : 'application/octet-stream'
+        );
+
+        const item: UploadedLessonFile = {
+          name: file.name,
+          type: mime,
+          size: file.size,
+          base64Data,
+        };
+
+        // Call backend /api/parse-lesson-file to parse outline and preview
+        try {
+          const res = await fetch('/api/parse-lesson-file', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName: item.name,
+              fileType: item.type,
+              fileBase64: item.base64Data,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            item.extractedText = data.extractedPreview || '';
+            item.detectedOutline = data.detectedOutline || [];
+            item.detectedTopic = data.detectedTopic || '';
+
+            if (data.detectedTopic && !topic) {
+              setTopic(data.detectedTopic);
+            }
+            if (data.detectedOutline && data.detectedOutline.length > 0) {
+              const first = data.detectedOutline[0];
+              if (!chapter && first.chapter) setChapter(first.chapter);
+              if (!lessonNo && first.lesson) setLessonNo(first.lesson);
+              if (!topic && first.topic) setTopic(first.topic);
+              if (!targetPage && first.page) setTargetPage(first.page);
+            }
+          }
+        } catch (e) {
+          console.warn('Scan notice:', e);
+        }
+
+        newFiles.push(item);
+      } catch (err: any) {
+        console.error('File load error:', err);
+        setScanError('មិនអាចផ្ទុក file នេះបានទេ៖ ' + (err?.message || ''));
+      }
+    }
+
+    setUploadedFiles(newFiles);
+    setIsScanning(false);
+  };
+
+  const handleSelectOutline = (item: BookOutlineItem, idx: number) => {
+    setSelectedOutlineIdx(idx);
+    if (item.chapter) setChapter(item.chapter);
+    if (item.lesson) setLessonNo(item.lesson);
+    if (item.topic) setTopic(item.topic);
+    if (item.page) setTargetPage(item.page);
+  };
+
+  const handleRemoveFile = (idx: number) => {
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== idx));
+    if (uploadedFiles.length <= 1) {
+      setSelectedOutlineIdx(null);
+    }
+  };
+
+  const handleApplySampleContent = (type: 'khmer' | 'math' | 'physics' | 'agri') => {
+    if (type === 'khmer') {
+      setTopic('ការតែងសេចក្តីបែបពន្យល់ «ចំណេះវិជ្ជាជាទ្រព្យមិនចេះរលាយ»');
+      setSubject('ភាសាខ្មែរ');
+      setGrade('ថ្នាក់ទី ៨');
+      setCustomLessonContent(`សុភាសិតខ្មែរពោលថា «ចំណេះវិជ្ជាជាទ្រព្យមិនចេះរលាយ»។
+សេចក្ដីពន្យល់ពីអត្ថន័យ៖
+១. ពាក្យគន្លឹះ៖ "ចំណេះវិជ្ជា" គឺជាការចេះដឹង ការយល់ដឹងលើក្បួនខ្នាត និងវិជ្ជាជីវៈផ្សេងៗ; "ទ្រព្យមិនចេះរលាយ" គឺជាទ្រព្យសម្បត្តិដ៏គង់វង្ស ជាប់នឹងខ្លួន គ្មានចោរណាម្នាក់អាចលួចប្លន់បានឡើយ។
+២. ខ្លឹមសារពន្យល់៖ ទ្រព្យសម្បត្តិក្រៅខ្លួនដូចជាមាស ប្រាក់ ដីធ្លី អាចបាត់បង់ដោយសារភ្លើងឆេះ ទឹកជំនន់ ឬចោរលួច ប៉ុន្តែចំណេះវិជ្ជានៅតែស្ថិតស្ថេរជាប់នឹងខ្លួនជានិច្ច។
+៣. ឧទាហរណ៍ជាក់ស្ដែង៖ បុគ្គលដែលមានចំណេះដឹង ទោះបីធ្លាក់ទៅដល់ទីណាក៏អាចប្រើចំណេះដឹងមកកសាងជីវិតឡើងវិញ និងជួយសង្គមជាតិបានដែរ។
+៤. សន្និដ្ឋាន៖ សិស្សានុសិស្សត្រូវខិតខំរៀនសូត្រឱ្យអស់ពីសមត្ថភាព ព្រោះចំណេះវិជ្ជាគឺជាស្ពានឆ្ពោះទៅកាន់អនាគតភ្លឺស្វាង។`);
+    } else if (type === 'math') {
+      setTopic('ទ្រឹស្ដីបទពីតាក័រ និងការអនុវត្តគណនាប្រវែងជ្រុងក្នុងត្រីកោណកែង');
+      setSubject('គណិតវិទ្យា');
+      setGrade('ថ្នាក់ទី ៩');
+      setCustomLessonContent(`ទ្រឹស្ដីបទពីតាក័រ (Pythagorean Theorem)៖
+ក្នុងត្រីកោណកែងមួយ ការ៉េនៃអ៊ីប៉ូតេនុសស្មើនឹងផលបូកការ៉េនៃជ្រុងមុំកែងពីរទៀត។
+រូបមន្ត៖ BC² = AB² + AC² (បើកែងត្រង់ A នោះ BC ជាអ៊ីប៉ូតេនុស) => BC = √(AB² + AC²)
+
+លំហាត់គំរូសៀវភៅពុម្ព៖
+ត្រីកោណ ABC កែងត្រង់ A ដែលមានប្រវែងជ្រុងមុំកែង AB = 6 cm និង AC = 8 cm។
+ចូរគណនាប្រវែងអ៊ីប៉ូតេនុស BC។
+ដំណោះស្រាយគំរូ៖
+- តាមទ្រឹស្ដីបទពីតាក័រ៖ BC² = AB² + AC²
+- ជំនួសលេខ៖ BC² = 6² + 8² = 36 + 64 = 100
+- នាំឱ្យ៖ BC = √100 = 10 cm។
+ចម្លើយ៖ អ៊ីប៉ូតេនុស BC = 10 cm។
+
+លំហាត់អនុវត្តសិស្ស៖ គណនា BC បើ AB = 5 cm និង AC = 12 cm។`);
+    } else if (type === 'physics') {
+      setTopic('ច្បាប់ទី ២ ញូតុន និងការគណនាកម្លាំងចលករ');
+      setSubject('រូបវិទ្យា');
+      setGrade('ថ្នាក់ទី ១០');
+      setCustomLessonContent(`ច្បាប់ទី ២ ញូតុន (Newton's Second Law of Motion)៖
+សំទុះនៃអង្គធាតុមួយសមាមាត្រនឹងកម្លាំងផ្គួបមានទិសដៅដូចកម្លាំង និងច្រាសសមាមាត្រនឹងម៉ាសរបស់អង្គធាតុ។
+រូបមន្ត៖ F = m × a
+ក្នុងនោះ៖
+- F ៖ កម្លាំងចលករ គិតជា ញូតុន (N)
+- m ៖ ម៉ាសអង្គធាតុ គិតជា គីឡូក្រាម (kg)
+- a ៖ សំទុះ គិតជា ម៉ែត្រក្នុងមួយវិនាទីការ៉េ (m/s²)
+
+លំហាត់ជាក់ស្ដែងសៀវភៅពុម្ព៖
+រថយន្តមួយមានម៉ាស m = 1200 kg ចាប់ផ្ដើមរត់ចេញពីស្ងៀម (v₀ = 0) ដោយសំទុះ a = 2.5 m/s² ក្នុងរយៈពេល t = 10 s។
+ចូរគណនា៖
+១. កម្លាំងចលករ F ដែលម៉ាស៊ីនរថយន្តបង្កើតឡើង
+២. ល្បឿន v របស់រថយន្តនៅចុងវិនាទីទី ១០ (គិតជា m/s និង km/h)។
+ក្បួនគណនា៖ F = 1200 × 2.5 = 3000 N; v = a × t = 2.5 × 10 = 25 m/s (ស្មើ 90 km/h)។`);
+    } else if (type === 'agri') {
+      setTopic('វិធីសាស្ត្រផលិតជីកំប៉ុសធម្មជាតិពីសំណល់សរីរាង្គក្នុងសហគមន៍');
+      setSubject('កសិកម្ម');
+      setGrade('ថ្នាក់ទី ៧');
+      setCustomLessonContent(`បច្ចេកទេសផលិតជីកំប៉ុសធម្មជាតិ (Compost Production)៖
+១. វត្ថុធាតុដើមចាំបាច់៖
+- ធាតុបៃតង (អាសូតខ្ពស់)៖ កាកសំណល់បន្លែ ផ្លែឈើ សំបកចេក ស្មៅស្រស់
+- ធាតុត្នោត (កាបូនខ្ពស់)៖ ស្លឹកឈើស្ងួត ចំបើង កម្ទេចកំប្លោក អង្កាម
+២. ដំណាក់កាលអនុវត្ត ៤ ជំហាន៖
+- ជំហាន ១៖ រៀបចំកន្លែងដាក់ (រណ្ដៅ ឬកញ្ច្រែងទំហំ ១m × ១m)
+- ជំហាន ២៖ រៀបស្រទាប់ឆ្លាស់គ្នា (ស្រទាប់ត្នោតកម្រាស់ ១០cm រួចស្រទាប់បៃតង ៥cm)
+- ជំហាន ៣៖ ស្រោចទឹកល្មមសើម (កម្រិតសំណើម ៥០-៦០%)
+- ជំហាន ៤៖ ច្របល់ខ្យល់រៀងរាល់ ៧ ថ្ងៃម្តងដើម្បីឱ្យបាក់តេរីដង្ហើមល្អ។
+៣. លទ្ធផលរំពឹងទុក៖ ក្រោយរយៈពេល ៣០ ទៅ ៤៥ ថ្ងៃ ជីកំប៉ុសនឹងមានពណ៌ត្នោតចាស់ ក្លិនដូចដីព្រៃ និងគ្មានក្លិនស្អុយ ត្រៀមប្រើប្រាស់សម្រាប់ដាំបន្លែសរីរាង្គ។`);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!topic.trim()) return;
+
+    const primaryFile = uploadedFiles[0];
+    const finalTopic =
+      topic.trim() ||
+      (lessonNo.trim()
+        ? `មេរៀន ${lessonNo.trim()}`
+        : chapter.trim()
+        ? `ជំពូក ${chapter.trim()}`
+        : primaryFile?.detectedTopic || 'មេរៀនតាមសៀវភៅពុម្ព');
+
+    if (!finalTopic.trim()) return;
 
     // Save defaults to localStorage for convenience
     localStorage.setItem('khmer_teacher_name', teacherName);
     localStorage.setItem('khmer_school_name', schoolName);
 
     await onGenerate({
-      topic: topic.trim(),
+      topic: finalTopic.trim(),
       subject,
       grade,
       duration,
       chapter: chapter.trim(),
       lessonNo: lessonNo.trim(),
+      targetPage: targetPage.trim(),
       teacherName: teacherName.trim(),
       schoolName: schoolName.trim(),
       focusKeywords: focusKeywords.trim(),
+      customLessonContent: customLessonContent.trim(),
+      uploadedFile: primaryFile,
+      uploadedFiles: uploadedFiles.length > 0 ? uploadedFiles : undefined,
       teachingMethod,
       teachingStrategy,
       integration,
       difficultyLevel,
-      isCustomTopic: true,
+      isCustomTopic: uploadedFiles.length === 0,
       includeIllustration,
     });
   };
+
+  const allDetectedOutline: Array<{ item: BookOutlineItem; fileIdx: number }> = [];
+  uploadedFiles.forEach((file, fIdx) => {
+    if (file.detectedOutline && Array.isArray(file.detectedOutline)) {
+      file.detectedOutline.forEach((item) => {
+        allDetectedOutline.push({ item, fileIdx: fIdx });
+      });
+    }
+  });
+
+  const canSubmit =
+    !isLoading &&
+    (topic.trim().length > 0 ||
+      (uploadedFiles.length > 0 &&
+        (chapter.trim().length > 0 || lessonNo.trim().length > 0 || (uploadedFiles[0]?.detectedTopic?.length || 0) > 0)));
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-7">
@@ -383,11 +614,11 @@ export const LessonPlanForm: React.FC<LessonPlanFormProps> = ({
               ១
             </span>
             <h2 className="text-lg sm:text-xl font-bold text-slate-800">
-              សរសេរប្រធានបទមេរៀន និង បង្កើតកិច្ចតែងការ
+              ប្រធានបទមេរៀន និង ឯកសារជំនួយ (សៀវភៅពុម្ព)
             </h2>
           </div>
           <p className="text-xs sm:text-sm text-slate-600 mt-1 pl-9">
-            បញ្ចូលប្រធានបទ ឬចំណងជើងមេរៀនដោយការសរសេរផ្ទាល់ (<strong>មិនត្រូវការគំរូស្រាប់ឡើយ</strong>)។ ប្រព័ន្ធនឹងរៀបចំកិច្ចតែងការបង្រៀនស្តង់ដារ ៥ ជំហាន MoEYS ផ្ដោតចំលើប្រធានបទដែលលោកគ្រូ-អ្នកគ្រូបានសរសេរនេះ ១០០%។
+            បញ្ចូលប្រធានបទមេរៀនដោយផ្ទាល់ ឬ/និង Upload file សៀវភៅពុម្ព (PDF, Word, TXT, រូបភាព) ដើម្បីបង្កើតកិច្ចតែងការបង្រៀនស្តង់ដារ ៥ ជំហាន MoEYS យ៉ាងសុក្រឹត ១០០%។
           </p>
         </div>
         <div className="flex items-center space-x-1.5 self-start sm:self-auto bg-amber-50 text-amber-800 text-xs px-3 py-1.5 rounded-full border border-amber-200">
@@ -396,60 +627,466 @@ export const LessonPlanForm: React.FC<LessonPlanFormProps> = ({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-        {/* Main Topic Field - Purely Written Input, No Preset Suggestions Needed */}
-        <div className="bg-slate-50/70 p-4 sm:p-5 rounded-2xl border border-slate-200">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-            <label className="flex items-center gap-2 text-sm sm:text-base font-bold text-slate-900">
-              <PenTool className="w-4 h-4 text-blue-600" />
-              <span>ប្រធានបទ ឬ ចំណងជើងមេរៀន (បញ្ចូលដោយការសរសេរផ្ទាល់)</span>
-              <span className="text-rose-500">*</span>
-            </label>
-            <span className="text-xs font-semibold text-emerald-800 bg-emerald-100/80 border border-emerald-300 px-2.5 py-1 rounded-full flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-              <span>សរសេរដោយសេរី មិនត្រូវការគំរូស្រាប់</span>
-            </span>
-          </div>
+      <form onSubmit={handleSubmit} className="mt-5 space-y-5">
+        {/* UNIFIED LESSON TOPIC & TEXTBOOK INTEGRATION SECTION (រួមគ្នាតែមួយ) */}
+        <div className="bg-gradient-to-br from-slate-50/90 via-blue-50/30 to-indigo-50/20 p-4 sm:p-5 rounded-2xl border border-slate-200/90 space-y-4">
+          {/* Main Topic Input Field */}
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="flex items-center gap-2 text-sm sm:text-base font-bold text-slate-900">
+                <PenTool className="w-4 h-4 text-blue-600" />
+                <span>ប្រធានបទ ឬ ចំណងជើងមេរៀន (Lesson Topic / Title)</span>
+                <span className="text-rose-500">*</span>
+              </label>
+              <span className="text-xs font-semibold text-blue-800 bg-blue-100/80 border border-blue-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-blue-600" />
+                <span>សរសេរផ្ទាល់ ឬស្រង់ស្វ័យប្រវត្តពីសៀវភៅ</span>
+              </span>
+            </div>
 
-          <p className="text-xs text-slate-500 mb-3">
-            លោកគ្រូ-អ្នកគ្រូវាយបញ្ចូលចំណងជើង ឬប្រធានបទថ្មីដែលចង់បង្រៀនចូលក្នុងប្រអប់ខាងក្រោមនេះ ប្រព័ន្ធនឹងបង្កើតកិច្ចតែងការបង្រៀនស្របតាមប្រធានបទនោះភ្លាមៗ៖
-          </p>
+            <p className="text-xs text-slate-500">
+              លោកគ្រូ-អ្នកគ្រូវាយបញ្ចូលប្រធានបទមេរៀននៅទីនេះ ឬជ្រើសរើសចេញពីបញ្ជីមេរៀនក្នុង file សៀវភៅពុម្ពខាងក្រោម៖
+            </p>
 
-          <div className="relative">
-            <input
-              type="text"
-              required
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="សូមសរសេរប្រធានបទ ឬចំណងជើងមេរៀននៅទីនេះ... (ឧ. ការប្រើ AI ក្នុងការស្រាវជ្រាវ, វិធីដោះស្រាយសមីការ, បំណិនជីវិត...)"
-              className="w-full px-4 py-3.5 text-base rounded-xl border-2 border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition bg-white text-slate-900 font-medium placeholder:text-slate-400 placeholder:font-normal shadow-2xs"
-            />
-            {topic && (
-              <button
-                type="button"
-                onClick={() => setTopic('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2.5 py-1.5 rounded-md transition"
-              >
-                សម្អាតអក្សរ
-              </button>
+            <div className="relative">
+              <input
+                type="text"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                placeholder="ឧ. ទ្រឹស្ដីបទពីតាក័រ, កម្លាំងចលករ, សមីការដឺក្រេទី២, វិធីផលិតជីកំប៉ុស... (ឬទុកឱ្យ AI ស្រង់ស្វ័យប្រវត្តពីសៀវភៅ)"
+                className="w-full px-4 py-3 text-sm sm:text-base rounded-xl border-2 border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition bg-white text-slate-900 font-medium placeholder:text-slate-400 placeholder:font-normal shadow-2xs"
+              />
+              {topic && (
+                <button
+                  type="button"
+                  onClick={() => setTopic('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2.5 py-1.5 rounded-md transition"
+                >
+                  សម្អាត
+                </button>
+              )}
+            </div>
+
+            {/* Real-time topic confirmation banner */}
+            {topic.trim() && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex items-start gap-2.5 animate-fadeIn">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">ប្រធានបទដែលបានកំណត់៖</span> «<strong className="text-emerald-950 font-bold underline decoration-emerald-400 underline-offset-2">{topic.trim()}</strong>»
+                  <p className="mt-0.5 text-emerald-800 text-[11px]">
+                    កិច្ចតែងការបង្រៀននឹងត្រូវបង្កើតឡើងផ្ដោតចំលើចំណងជើងនេះសុទ្ធសាធ ដោយមានវត្ថុបំណង ខ្លឹមសារទ្រឹស្ដី ឧទាហរណ៍គំរូ និងលំហាត់អនុវត្តជាក់ស្ដែងស្របតាមប្រធានបទនេះ ១០០%។
+                  </p>
+                </div>
+              </div>
             )}
           </div>
 
-          {/* Real-time topic confirmation banner */}
-          {topic.trim() ? (
-            <div className="mt-3 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs sm:text-sm text-emerald-900 flex items-start gap-2.5 animate-fadeIn">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+          {/* Chapter, Lesson Number & Page Precision Matcher */}
+          <div className="p-3.5 sm:p-4 rounded-xl bg-white/85 border border-blue-100/90 space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <Target className="w-4 h-4 text-indigo-600" />
+                <span>ជំពូក មេរៀន និង ទំព័រសៀវភៅ (Chapter, Lesson & Page)</span>
+              </label>
+              <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                ស្រេចចិត្ត (Optional)
+              </span>
+            </div>
+
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              {t.bookTargetNote}
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {/* Target Chapter */}
               <div>
-                <span className="font-bold">ប្រធានបទដែលបានបញ្ចូល៖</span> «<strong className="text-emerald-950 font-bold underline decoration-emerald-400 underline-offset-2">{topic.trim()}</strong>»
-                <p className="mt-1 text-emerald-800 text-xs">
-                  កិច្ចតែងការបង្រៀននឹងត្រូវបង្កើតឡើងផ្ដោតចំលើចំណងជើងនេះសុទ្ធសាធ ដោយមានវត្ថុបំណង ខ្លឹមសារទ្រឹស្ដី ឧទាហរណ៍គំរូ និងលំហាត់អនុវត្តជាក់ស្ដែងស្របតាមប្រធានបទនេះ ១០០%។
-                </p>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                  {t.targetChapterLabel}
+                </label>
+                <input
+                  type="text"
+                  value={chapter}
+                  onChange={(e) => setChapter(e.target.value)}
+                  placeholder={t.targetChapterPlaceholder}
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium"
+                />
+              </div>
+
+              {/* Target Lesson */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                  {t.targetLessonLabel}
+                </label>
+                <input
+                  type="text"
+                  value={lessonNo}
+                  onChange={(e) => setLessonNo(e.target.value)}
+                  placeholder={t.targetLessonPlaceholder}
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium"
+                />
+              </div>
+
+              {/* Target Page */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                  {t.targetPageLabel}
+                </label>
+                <input
+                  type="text"
+                  value={targetPage}
+                  onChange={(e) => setTargetPage(e.target.value)}
+                  placeholder={t.targetPagePlaceholder}
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium"
+                />
               </div>
             </div>
-          ) : (
-            <div className="mt-2.5 text-xs text-slate-400 flex items-center gap-1.5">
-              <span>💡</span>
-              <span>លោកគ្រូ-អ្នកគ្រូអាចសរសេរប្រធានបទថ្មីៗ ឬប្រធានបទដែលគ្មានក្នុងសៀវភៅពុម្ពបានដោយសេរី។</span>
+          </div>
+
+          {/* Integrated Upload Textbook / Lesson Files Section */}
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center justify-between gap-2">
+              <label className="flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-800">
+                <UploadCloud className="w-4 h-4 text-blue-600" />
+                <span>ឯកសារសៀវភៅពុម្ព ឬ ឯកសារមេរៀន (PDF, Word, TXT, រូបភាព)</span>
+              </label>
+              {uploadedFiles.length > 0 ? (
+                <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  <span>{uploadedFiles.length} file បានភ្ជាប់</span>
+                </span>
+              ) : (
+                <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                  ស្រេចចិត្ត (Optional)
+                </span>
+              )}
+            </div>
+
+            {/* Dropzone Card */}
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+                if (e.dataTransfer.files) {
+                  handleFiles(e.dataTransfer.files);
+                }
+              }}
+              className={`p-4 sm:p-5 rounded-xl border-2 border-dashed transition-all text-center ${
+                isDragging
+                  ? 'border-blue-500 bg-blue-50/80 scale-[1.01]'
+                  : uploadedFiles.length > 0
+                  ? 'border-blue-300 bg-gradient-to-br from-blue-50/50 to-white'
+                  : 'border-slate-300 hover:border-blue-400 bg-white hover:bg-blue-50/30'
+              }`}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.docx,.doc,.txt,.md,image/*"
+                onChange={(e) => {
+                  if (e.target.files) {
+                    handleFiles(e.target.files);
+                  }
+                }}
+                className="hidden"
+              />
+
+              <div className="max-w-xl mx-auto flex flex-col items-center">
+                <div className="w-11 h-11 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center mb-2 shadow-2xs">
+                  <UploadCloud className="w-6 h-6" />
+                </div>
+
+                <h4 className="text-xs sm:text-base font-bold text-slate-800 mb-0.5">
+                  {t.uploadFileLabel}
+                </h4>
+                <p className="text-[11px] text-slate-500 mb-2 leading-relaxed">
+                  {t.uploadFileSub}
+                </p>
+
+                <div className="flex flex-wrap items-center justify-center gap-1.5 mb-3">
+                  <span className="text-[10px] font-medium bg-slate-50 px-2 py-0.5 rounded border border-slate-200 text-slate-600">
+                    📄 PDF (.pdf)
+                  </span>
+                  <span className="text-[10px] font-medium bg-slate-50 px-2 py-0.5 rounded border border-slate-200 text-slate-600">
+                    📝 Word (.docx)
+                  </span>
+                  <span className="text-[10px] font-medium bg-slate-50 px-2 py-0.5 rounded border border-slate-200 text-slate-600">
+                    📃 អត្ថបទ (.txt)
+                  </span>
+                  <span className="text-[10px] font-medium bg-slate-50 px-2 py-0.5 rounded border border-slate-200 text-slate-600">
+                    🖼️ រូបភាពសៀវភៅ (.jpg, .png)
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isScanning}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-xs hover:shadow transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <FileUp className="w-4 h-4" />
+                  <span>{uploadedFiles.length > 0 ? '+ បន្ថែម File សៀវភៅ / មេរៀនទៀត' : t.uploadFileBtn}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Scanning indicator */}
+            {isScanning && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 flex items-center gap-2.5 animate-pulse">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-600 shrink-0" />
+                <span className="font-medium">{t.uploadScanning}</span>
+              </div>
+            )}
+
+            {/* Scan Error */}
+            {scanError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{scanError}</span>
+              </div>
+            )}
+
+            {/* Uploaded Files List */}
+            {uploadedFiles.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-700 px-1">
+                  <span>ឯកសារសៀវភៅដែលបាន Upload ({uploadedFiles.length})៖</span>
+                  <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full text-[11px] font-semibold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    <span>{t.uploadSuccess}</span>
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {uploadedFiles.map((f, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2.5 bg-white border border-slate-200 rounded-xl flex items-center justify-between gap-2 shadow-2xs hover:border-blue-300 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 font-bold text-[11px]">
+                          {f.name.toLowerCase().endsWith('.pdf') ? 'PDF' : f.name.toLowerCase().endsWith('.docx') ? 'DOC' : 'TXT'}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-800 truncate" title={f.name}>
+                            {f.name}
+                          </p>
+                          <p className="text-[10px] text-slate-500">
+                            {Math.round(f.size / 1024)} KB
+                            {f.detectedTopic && ` • ${f.detectedTopic}`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(idx)}
+                        className="text-slate-400 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 transition cursor-pointer shrink-0"
+                        title={t.uploadRemove}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Detected Outline Navigator (Table of Contents extracted from Book) */}
+            {allDetectedOutline.length > 0 && (
+              <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2 animate-fadeIn">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-950">
+                    <BookMarked className="w-4 h-4 text-indigo-600" />
+                    <span>{t.bookScanOutlineTitle}</span>
+                  </div>
+                  <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full">
+                    រកឃើញ {allDetectedOutline.length} មេរៀន
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-indigo-900/80 leading-relaxed">
+                  ចុចលើមេរៀនណាមួយខាងក្រោមដើម្បីបំពេញស្វ័យប្រវត្តនូវ <strong>ប្រធានបទ</strong>, <strong>ជំពូក</strong>, និង <strong>មេរៀន</strong> ខាងលើ៖
+                </p>
+
+                <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                  {allDetectedOutline.map(({ item }, idx) => {
+                    const isSelected = selectedOutlineIdx === idx;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleSelectOutline(item, idx)}
+                        className={`w-full text-left p-2.5 rounded-xl border text-xs transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white border-indigo-600 font-bold shadow-xs'
+                            : 'bg-white hover:bg-indigo-50/80 border-indigo-100 text-slate-800 hover:border-indigo-300'
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            {item.chapter && (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                isSelected ? 'bg-indigo-700 text-indigo-100' : 'bg-slate-100 text-slate-600'
+                              }`}>
+                                {item.chapter}
+                              </span>
+                            )}
+                            <span className="font-semibold">{item.lesson || `មេរៀន ${idx + 1}`}</span>
+                            {item.page && (
+                              <span className={`text-[10px] ${isSelected ? 'text-indigo-200' : 'text-slate-400'}`}>
+                                ({item.page})
+                              </span>
+                            )}
+                          </div>
+                          {item.topic && (
+                            <p className={`text-xs mt-0.5 truncate ${isSelected ? 'text-white' : 'text-slate-700'}`}>
+                              {item.topic}
+                            </p>
+                          )}
+                        </div>
+
+                        <span className={`shrink-0 text-xs ${isSelected ? 'text-white' : 'text-indigo-600'}`}>
+                          {isSelected ? '✓ ជ្រើសរើស' : 'ជ្រើសរើស ->'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Text Excerpt Preview from Book */}
+            {uploadedFiles.some((f) => f.extractedText) && (
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowExtractedPreview(!showExtractedPreview)}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1.5 cursor-pointer"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>{showExtractedPreview ? 'បង្រួមអត្ថបទដែលបានស្រង់ពីសៀវភៅ' : 'មើលអត្ថបទដែលបានស្រង់ចេញពី file សៀវភៅ'}</span>
+                  {showExtractedPreview ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </button>
+
+                {showExtractedPreview && (
+                  <div className="mt-2 p-3 bg-white border border-slate-200 rounded-xl max-h-48 overflow-y-auto text-xs text-slate-700 whitespace-pre-line font-sans leading-relaxed animate-fadeIn">
+                    {uploadedFiles
+                      .map((f) => (f.extractedText ? `[${f.name}]:\n${f.extractedText}` : ''))
+                      .filter(Boolean)
+                      .join('\n\n')}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Custom Lesson Content / Textbook Excerpt Section (អត្ថបទមេរៀនផ្ទាល់ខ្លួន ឬសៀវភៅពុម្ព) */}
+        <div className={`rounded-2xl border transition-all ${
+          customLessonContent.trim()
+            ? 'bg-gradient-to-br from-indigo-50/90 via-blue-50/60 to-white border-indigo-300 shadow-xs'
+            : 'bg-slate-50/70 border-slate-200'
+        } p-4 sm:p-5 space-y-3`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="flex items-center gap-2 text-sm sm:text-base font-bold text-slate-900">
+              <FileText className="w-4 h-4 text-indigo-600" />
+              <span>{t.customLessonContentLabel}</span>
+            </label>
+            <span className="text-[11px] font-bold text-indigo-800 bg-indigo-100/90 border border-indigo-200/80 px-2.5 py-1 rounded-full flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-indigo-600" />
+              <span>{t.customLessonContentBadge}</span>
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-600 leading-relaxed">
+            {t.customLessonContentDesc}
+          </p>
+
+          {/* Quick Pre-filled Lesson Samples */}
+          <div className="flex items-center flex-wrap gap-1.5 pt-1">
+            <span className="text-[11px] font-semibold text-slate-500 mr-1">{t.customLessonContentSamples}</span>
+            <button
+              type="button"
+              onClick={() => handleApplySampleContent('khmer')}
+              className="text-[11px] px-2.5 py-1 rounded-lg bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-slate-700 font-medium transition shadow-2xs cursor-pointer"
+            >
+              📖 តែងសេចក្តី/អំណានខ្មែរ
+            </button>
+            <button
+              type="button"
+              onClick={() => handleApplySampleContent('math')}
+              className="text-[11px] px-2.5 py-1 rounded-lg bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-slate-700 font-medium transition shadow-2xs cursor-pointer"
+            >
+              📐 ទ្រឹស្ដីបទ និងលំហាត់គណិត
+            </button>
+            <button
+              type="button"
+              onClick={() => handleApplySampleContent('physics')}
+              className="text-[11px] px-2.5 py-1 rounded-lg bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-slate-700 font-medium transition shadow-2xs cursor-pointer"
+            >
+              ⚡ ច្បាប់ញូតុន និងរូបវិទ្យា
+            </button>
+            <button
+              type="button"
+              onClick={() => handleApplySampleContent('agri')}
+              className="text-[11px] px-2.5 py-1 rounded-lg bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-slate-700 font-medium transition shadow-2xs cursor-pointer"
+            >
+              🌱 ពិសោធន៍ ឬបំណិនជីវិត
+            </button>
+          </div>
+
+          {/* Textarea Container with Voice Dictation Button & Stats */}
+          <div className="relative">
+            <textarea
+              rows={4}
+              value={customLessonContent}
+              onChange={(e) => setCustomLessonContent(e.target.value)}
+              placeholder={t.customLessonContentPlaceholder}
+              className="w-full px-4 py-3 text-xs sm:text-sm rounded-xl border-2 border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-600 outline-none transition bg-white text-slate-900 leading-relaxed font-sans placeholder:text-slate-400 shadow-2xs"
+            />
+
+            {/* Bottom bar inside/under textarea */}
+            <div className="flex items-center justify-between pt-1 px-1 text-xs text-slate-500">
+              <div className="flex items-center gap-2">
+                <VoiceMicButton
+                  onTranscript={(transcript) => {
+                    setCustomLessonContent((prev) => (prev ? `${prev} ${transcript}` : transcript));
+                  }}
+                  size="xs"
+                  title={t.customLessonVoiceInput}
+                />
+                <span className="text-[11px] text-slate-400">
+                  {customLessonContent.length} {t.customLessonCharCount}
+                </span>
+              </div>
+
+              {customLessonContent && (
+                <button
+                  type="button"
+                  onClick={() => setCustomLessonContent('')}
+                  className="text-[11px] text-rose-600 hover:text-rose-700 hover:underline font-medium cursor-pointer"
+                >
+                  {t.customLessonClear}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {customLessonContent.trim() && (
+            <div className="p-3 bg-indigo-50/90 border border-indigo-200 rounded-xl text-xs text-indigo-900 flex items-start gap-2 animate-fadeIn">
+              <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold">កិច្ចតែងការបង្រៀននឹងបង្កើតឡើងផ្អែកលើអត្ថបទជាក់លាក់នេះ ១០០%៖</span>
+                <p className="mt-0.5 text-indigo-800 text-[11px]">
+                  ប្រព័ន្ធ AI នឹងស្រង់យកចំណុចស្នូល និយមន័យ រូបមន្ត ដំណោះស្រាយមួយជំហានម្តងៗ និងសំណួរវាស់ស្ទង់ចេញពីខ្លឹមសារដែលលោកគ្រូ-អ្នកគ្រូបានផ្ដល់ជូននេះដោយផ្ទាល់។
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -925,8 +1562,8 @@ export const LessonPlanForm: React.FC<LessonPlanFormProps> = ({
         <div className="pt-3">
           <button
             type="submit"
-            disabled={isLoading || !topic.trim()}
-            className="w-full flex items-center justify-center space-x-2 py-3.5 px-6 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:via-indigo-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg shadow-blue-500/20 transition-all text-base sm:text-lg"
+            disabled={!canSubmit}
+            className="w-full flex items-center justify-center space-x-2 py-3.5 px-6 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:via-indigo-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg shadow-blue-500/20 transition-all text-base sm:text-lg cursor-pointer"
           >
             {isLoading ? (
               <>
@@ -938,12 +1575,16 @@ export const LessonPlanForm: React.FC<LessonPlanFormProps> = ({
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                <span>កំពុងបង្កើតកិច្ចតែងការដោយ AI...</span>
+                <span>{t.generatingBtn || 'កំពុងបង្កើតកិច្ចតែងការដោយ AI...'}</span>
               </>
             ) : (
               <>
                 <Wand2 className="w-5 h-5" />
-                <span>បង្កើតកិច្ចតែងការបង្រៀនភ្លាមៗ</span>
+                <span>
+                  {uploadedFiles.length > 0
+                    ? 'បង្កើតកិច្ចតែងការស្រង់ចេញពីសៀវភៅពុម្ព'
+                    : 'បង្កើតកិច្ចតែងការបង្រៀនភ្លាមៗ'}
+                </span>
               </>
             )}
           </button>

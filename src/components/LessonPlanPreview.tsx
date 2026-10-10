@@ -1,15 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LessonPlanData, TeachingStep } from '../types/lessonPlan';
-import { Sparkles, Plus, Trash2, Edit2, Check, RefreshCw, Clock, CheckCircle2, AlertCircle, Contrast, Mic } from 'lucide-react';
+import { Sparkles, Plus, Trash2, Edit2, Check, RefreshCw, Clock, CheckCircle2, AlertCircle, Contrast, Mic, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { calculateStepDurations, sumStepsMinutes, parseDurationMinutes } from '../utils/durationHelper';
 import { ObjectivesManager } from './ObjectivesManager';
 import { PracticalApplicationSection } from './PracticalApplicationSection';
-import { VocabularyListSection } from './VocabularyListSection';
 import { IllustrationSection } from './IllustrationSection';
 import { VoiceInput } from './VoiceInput';
 import { VoiceTextarea } from './VoiceTextarea';
 import { VoiceMicButton } from './VoiceMicButton';
-import { generateSubjectPracticalApplication, generateSubjectVocabulary } from '../../curriculumEngine';
+import { generateSubjectPracticalApplication } from '../../curriculumEngine';
 import { generateTopicIllustration } from '../utils/illustrationEngine';
 
 interface LessonPlanPreviewProps {
@@ -198,19 +197,13 @@ export const LessonPlanPreview: React.FC<LessonPlanPreviewProps> = ({
   onRefineStep,
   isPrintFriendly = false,
 }) => {
+  const [isSourceTextOpen, setIsSourceTextOpen] = useState(false);
   const h = plan.header;
   const obj = plan.objectives;
   const mat = plan.materials;
   const effectivePracticalApp =
     plan.practicalApplication ||
     generateSubjectPracticalApplication(
-      h.topic,
-      h.subject,
-      h.grade
-    );
-  const effectiveVocabularyList =
-    plan.vocabularyList ||
-    generateSubjectVocabulary(
       h.topic,
       h.subject,
       h.grade
@@ -688,6 +681,115 @@ export const LessonPlanPreview: React.FC<LessonPlanPreviewProps> = ({
           </div>
         </div>
 
+        {/* Source Textbook Reference Banner */}
+        {(plan.sourceFile || h.sourceFile) && (
+          <div
+            className={`mb-4 rounded-xl border p-3 flex flex-wrap items-center justify-between gap-2 text-xs transition-all ${
+              isPrintFriendly
+                ? 'border-black/30 bg-white text-black'
+                : 'border-blue-200 bg-blue-50/70 text-blue-900 shadow-2xs'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-base">📖</span>
+              <div>
+                <span className="font-bold">ដកស្រង់ចេញពីសៀវភៅពុម្ព៖ </span>
+                <span className="font-semibold underline">
+                  {(plan.sourceFile || h.sourceFile)?.name}
+                </span>
+                {((plan.sourceFile || h.sourceFile)?.chapter || (plan.sourceFile || h.sourceFile)?.lessonNo) && (
+                  <span className="ml-1 text-[11px] opacity-90">
+                    ({(plan.sourceFile || h.sourceFile)?.chapter ? `${(plan.sourceFile || h.sourceFile)?.chapter} ` : ''}
+                     {(plan.sourceFile || h.sourceFile)?.lessonNo ? `| ${(plan.sourceFile || h.sourceFile)?.lessonNo} ` : ''}
+                     {(plan.sourceFile || h.sourceFile)?.page ? `| ${(plan.sourceFile || h.sourceFile)?.page}` : ''})
+                  </span>
+                )}
+              </div>
+            </div>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+              ✓ ស្រង់ចំមេរៀនក្នុងសៀវភៅ ១០០%
+            </span>
+          </div>
+        )}
+
+        {/* Custom Lesson Source Content (អត្ថបទមេរៀនដើមដែលបានផ្ដល់ជូនដោយគ្រូបង្រៀន) */}
+        {(plan.customLessonContent || h.customLessonContent) && (
+          <div
+            className={`mb-6 rounded-xl border transition-all ${
+              isPrintFriendly
+                ? 'border-black/40 bg-white text-black p-3 text-xs'
+                : 'border-indigo-200 bg-gradient-to-r from-indigo-50/70 via-blue-50/40 to-white shadow-xs p-3.5 sm:p-4'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center flex-wrap gap-2">
+                <FileText className={`w-4 h-4 shrink-0 ${isPrintFriendly ? 'text-black' : 'text-indigo-600'}`} />
+                <span className={`font-bold text-xs sm:text-sm ${isPrintFriendly ? 'text-black' : 'text-indigo-950'}`}>
+                  អត្ថបទមេរៀនដើមដែលបានផ្ដល់ជូនដោយគ្រូបង្រៀន (Source Material)
+                </span>
+                <span
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                    isPrintFriendly
+                      ? 'border border-black text-black'
+                      : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                  }`}
+                >
+                  ចំអ្វីដែលចង់បាន ១០០%
+                </span>
+              </div>
+              {!isPrintFriendly && (
+                <button
+                  type="button"
+                  onClick={() => setIsSourceTextOpen(!isSourceTextOpen)}
+                  className="text-xs text-indigo-700 hover:text-indigo-900 font-medium flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  <span>{isSourceTextOpen ? 'បង្រួម' : 'មើលអត្ថបទដើមពេញលេញ'}</span>
+                  {isSourceTextOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </button>
+              )}
+            </div>
+
+            {/* Editable or Display View */}
+            {isEditing ? (
+              <div className="mt-3">
+                <label className="text-[11px] font-medium text-slate-600 block mb-1">
+                  កែសម្រួលអត្ថបទមេរៀនដើម៖
+                </label>
+                <VoiceTextarea
+                  value={plan.customLessonContent || h.customLessonContent || ''}
+                  onChangeValue={(val) => {
+                    onUpdatePlan({
+                      ...plan,
+                      customLessonContent: val,
+                      header: {
+                        ...plan.header,
+                        customLessonContent: val,
+                      },
+                    });
+                  }}
+                  rows={4}
+                  className="w-full text-xs sm:text-sm p-2 rounded-lg border border-indigo-300 bg-white text-slate-900 font-sans"
+                  placeholder="ខ្លឹមសារមេរៀនដើម..."
+                />
+              </div>
+            ) : isSourceTextOpen || isPrintFriendly ? (
+              <div
+                className={`mt-2.5 pt-2.5 border-t ${
+                  isPrintFriendly ? 'border-black/20 text-black' : 'border-indigo-100 text-slate-800'
+                }`}
+              >
+                <p className="text-xs sm:text-[13px] leading-relaxed whitespace-pre-line font-sans bg-white/80 p-3 rounded-lg border border-indigo-100/80">
+                  {plan.customLessonContent || h.customLessonContent}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-1 text-xs text-slate-600 line-clamp-1 italic">
+                «{(plan.customLessonContent || h.customLessonContent || '').slice(0, 140)}...»
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Section I: Objectives (Dedicated 3-Domain UI Component) */}
         <ObjectivesManager
           objectives={obj}
@@ -751,31 +853,6 @@ export const LessonPlanPreview: React.FC<LessonPlanPreviewProps> = ({
                 <span>{mat.students.join(', ')}</span>
               )}
             </p>
-            {effectiveVocabularyList && effectiveVocabularyList.length > 0 && (
-              <div className="pt-1.5 flex flex-wrap items-baseline gap-1.5">
-                <strong className={isPrintFriendly ? 'text-black' : 'text-slate-900'}>- វាក្យសព្ទគន្លឹះក្នុងមេរៀន៖ </strong>
-                <div className="flex flex-wrap gap-1.5">
-                  {effectiveVocabularyList.map((item, vIdx) => (
-                    <span
-                      key={vIdx}
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${
-                        isPrintFriendly
-                          ? 'border border-black text-black'
-                          : 'bg-blue-50 text-blue-900 border border-blue-200'
-                      }`}
-                      title={item.definition}
-                    >
-                      <span>{item.term}</span>
-                      {item.partOfSpeech && (
-                        <span className={`text-[10px] font-normal italic ${isPrintFriendly ? 'text-black' : 'text-slate-500'}`}>
-                          ({item.partOfSpeech})
-                        </span>
-                      )}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
@@ -1115,25 +1192,6 @@ export const LessonPlanPreview: React.FC<LessonPlanPreviewProps> = ({
               {h.teacherName || '................................................'}
             </div>
           </div>
-        </div>
-
-        {/* Supplementary Annex: Key Vocabulary Reference */}
-        <div className="mt-8 pt-6 border-t-2 border-dashed border-slate-300 w-full">
-          <VocabularyListSection
-            title="ឧបសម្ព័ន្ធ៖ បញ្ជីវាក្យសព្ទគន្លឹះក្នុងមេរៀន (Key Terms & Vocabulary Reference)"
-            vocabularyList={effectiveVocabularyList}
-            topic={h.topic}
-            subject={h.subject}
-            grade={h.grade}
-            isEditing={isEditing}
-            isPrintFriendly={isPrintFriendly}
-            onChange={(updatedList) =>
-              onUpdatePlan({
-                ...plan,
-                vocabularyList: updatedList,
-              })
-            }
-          />
         </div>
 
         {/* Creator & App Owner Attribution Footnote */}

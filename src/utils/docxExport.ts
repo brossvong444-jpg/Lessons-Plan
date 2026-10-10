@@ -12,7 +12,7 @@ import {
   HeadingLevel,
 } from 'docx';
 import { LessonPlanData } from '../types/lessonPlan';
-import { generateSubjectPracticalApplication, generateSubjectVocabulary } from '../../curriculumEngine';
+import { generateSubjectPracticalApplication } from '../../curriculumEngine';
 
 function formatDocxCellParagraphs(text: string, isLessonContent: boolean = false): Paragraph[] {
   const lines = text.split('\n').filter((l) => l.trim().length > 0);
@@ -88,10 +88,6 @@ export async function exportLessonPlanToDocx(plan: LessonPlanData): Promise<Blob
   const practicalApp =
     plan.practicalApplication ||
     generateSubjectPracticalApplication(h.topic, h.subject, h.grade);
-
-  const vocabList =
-    plan.vocabularyList ||
-    generateSubjectVocabulary(h.topic, h.subject, h.grade);
 
   const step3Index = plan.steps.findIndex(
     (s, i) =>
@@ -355,6 +351,81 @@ export async function exportLessonPlanToDocx(plan: LessonPlanData): Promise<Blob
                   }),
                 ],
               }),
+
+              // Row 7 (Optional): Custom Source Material Excerpt
+              ...((h.customLessonContent || plan.customLessonContent)
+                ? [
+                    new TableRow({
+                      children: [
+                        new TableCell({
+                          columnSpan: 2,
+                          shading: { fill: 'F1F5F9' },
+                          children: [
+                            new Paragraph({
+                              children: [
+                                new TextRun({
+                                  text: 'ខ្លឹមសារដកស្រង់ពីសៀវភៅពុម្ព/ឯកសារយោងជាក់លាក់៖ ',
+                                  bold: true,
+                                  font: 'Kantumruy Pro',
+                                  size: 19,
+                                  color: '1E293B',
+                                }),
+                                new TextRun({
+                                  text:
+                                    (h.customLessonContent || plan.customLessonContent || '').slice(0, 260) +
+                                    ((h.customLessonContent || plan.customLessonContent || '').length > 260
+                                      ? '...'
+                                      : ''),
+                                  italics: true,
+                                  font: 'Kantumruy Pro',
+                                  size: 18,
+                                  color: '475569',
+                                }),
+                              ],
+                            }),
+                          ],
+                        }),
+                      ],
+                    }),
+                  ]
+                : []),
+
+              // Row 8 (Optional): Uploaded Textbook Source File Reference
+              ...((h.sourceFile || plan.sourceFile)
+                ? [
+                    new TableRow({
+                      children: [
+                        new TableCell({
+                          columnSpan: 2,
+                          shading: { fill: 'EFF6FF' },
+                          children: [
+                            new Paragraph({
+                              children: [
+                                new TextRun({
+                                  text: 'ឯកសារយោងសៀវភៅពុម្ព៖ ',
+                                  bold: true,
+                                  font: 'Kantumruy Pro',
+                                  size: 19,
+                                  color: '1E3A8A',
+                                }),
+                                new TextRun({
+                                  text: `${(h.sourceFile || plan.sourceFile)?.name || ''} ${
+                                    (h.sourceFile || plan.sourceFile)?.chapter ? `(${(h.sourceFile || plan.sourceFile)?.chapter} ` : ''
+                                  }${(h.sourceFile || plan.sourceFile)?.lessonNo ? `| ${(h.sourceFile || plan.sourceFile)?.lessonNo} ` : ''}${
+                                    (h.sourceFile || plan.sourceFile)?.page ? `| ${(h.sourceFile || plan.sourceFile)?.page}` : ''
+                                  }${(h.sourceFile || plan.sourceFile)?.chapter ? ')' : ''}`,
+                                  font: 'Kantumruy Pro',
+                                  size: 19,
+                                  color: '2563EB',
+                                }),
+                              ],
+                            }),
+                          ],
+                        }),
+                      ],
+                    }),
+                  ]
+                : []),
             ],
           }),
 
@@ -435,20 +506,6 @@ export async function exportLessonPlanToDocx(plan: LessonPlanData): Promise<Blob
                       font: 'Kantumruy Pro',
                       italics: true,
                       color: '065F46',
-                    }),
-                  ],
-                }),
-              ]
-            : []),
-          ...(vocabList && vocabList.length > 0
-            ? [
-                new Paragraph({
-                  children: [
-                    new TextRun({ text: '- វាក្យសព្ទគន្លឹះក្នុងមេរៀន៖ ', bold: true, font: 'Kantumruy Pro' }),
-                    new TextRun({
-                      text: vocabList.map((v) => v.term).join(' • '),
-                      font: 'Kantumruy Pro',
-                      color: '1E3A8A',
                     }),
                   ],
                 }),
@@ -695,58 +752,6 @@ export async function exportLessonPlanToDocx(plan: LessonPlanData): Promise<Blob
               }),
             ],
           }),
-
-          // Supplementary Annex: Key Vocabulary Annex
-          ...(vocabList && vocabList.length > 0
-            ? [
-                new Paragraph({ text: '' }),
-                new Paragraph({ text: '' }),
-                new Paragraph({
-                  heading: HeadingLevel.HEADING_2,
-                  children: [
-                    new TextRun({
-                      text: 'ឧបសម្ព័ន្ធ៖ បញ្ជីវាក្យសព្ទគន្លឹះក្នុងមេរៀន (Key Terms & Vocabulary Reference)',
-                      font: 'Moul',
-                      bold: true,
-                      size: 22,
-                      color: '1E3A8A',
-                    }),
-                  ],
-                }),
-                ...vocabList.map(
-                  (v, vIdx) =>
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `${vIdx + 1}. ${v.term}`,
-                          bold: true,
-                          font: 'Kantumruy Pro',
-                          color: '1E3A8A',
-                        }),
-                        new TextRun({
-                          text: v.partOfSpeech ? ` (${v.partOfSpeech})` : '',
-                          italics: true,
-                          font: 'Kantumruy Pro',
-                        }),
-                        new TextRun({
-                          text: `៖ ${v.definition}`,
-                          font: 'Kantumruy Pro',
-                        }),
-                        ...(v.exampleOrContext
-                          ? [
-                              new TextRun({
-                                text: ` [ឧទាហរណ៍/បរិបទ៖ ${v.exampleOrContext}]`,
-                                font: 'Kantumruy Pro',
-                                italics: true,
-                                color: '4B5563',
-                              }),
-                            ]
-                          : []),
-                      ],
-                    }),
-                ),
-              ]
-            : []),
 
           new Paragraph({
             alignment: AlignmentType.CENTER,

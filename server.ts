@@ -4,6 +4,7 @@ import { createServer as createHttpServer } from 'http';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import mammoth from 'mammoth';
 import { GoogleGenAI, Type } from '@google/genai';
 import {
   toKhmerNumber,
@@ -19,7 +20,7 @@ dotenv.config();
 const app = express();
 const port = 3000;
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '40mb' }));
 
 const apiKey = process.env.GEMINI_API_KEY || '';
 const ai = apiKey
@@ -87,30 +88,77 @@ async function generateContentWithFallback(aiClient: any, requestOptions: any) {
 }
 
 function generateIntelligentFallback(body: any) {
-  return buildTopicAlignedLessonPlan(body);
+  const mergedBody = { ...body };
+  const allFiles: any[] = [];
+  if (Array.isArray(body.uploadedFiles) && body.uploadedFiles.length > 0) {
+    allFiles.push(...body.uploadedFiles);
+  } else if (body.uploadedFile) {
+    allFiles.push(body.uploadedFile);
+  }
+
+  const primaryFile = allFiles[0];
+  if (primaryFile) {
+    let combinedText = allFiles.map((f: any) => f.extractedText || '').filter(Boolean).join('\n\n');
+    if (combinedText && !mergedBody.customLessonContent) {
+      // If target chapter/lesson was specified, search for matching section in book text
+      let targetedText = combinedText;
+      const targetChap = (body.chapter || '').trim();
+      const targetLes = (body.lessonNo || '').trim();
+      if (targetChap || targetLes) {
+        const lines = combinedText.split('\n');
+        const matchIdx = lines.findIndex((l: string) => {
+          const lLower = l.toLowerCase();
+          return (targetChap && lLower.includes(targetChap.toLowerCase())) ||
+                 (targetLes && lLower.includes(targetLes.toLowerCase()));
+        });
+        if (matchIdx >= 0) {
+          // Take 120 lines from the found chapter/lesson start
+          targetedText = lines.slice(matchIdx, matchIdx + 120).join('\n');
+        }
+      }
+      mergedBody.customLessonContent = targetedText.slice(0, 10000);
+    }
+    if (!mergedBody.topic && (primaryFile.detectedTopic || body.lessonNo || body.chapter)) {
+      mergedBody.topic = primaryFile.detectedTopic || (body.lessonNo ? `មេរៀន ${body.lessonNo}` : `ជំពូក ${body.chapter}`);
+    }
+  }
+  return buildTopicAlignedLessonPlan(mergedBody);
 }
 
 // Generate Lesson Plan Endpoint
 app.post('/api/generate-lesson-plan', async (req, res) => {
   try {
     const {
-      topic,
       subject = 'ភាសាខ្មែរ',
       grade = 'ថ្នាក់ទី ៩',
       duration = '៥០ នាទី (១ ម៉ោងសិក្សា)',
       chapter = '',
       lessonNo = '',
+      targetPage = '',
       teacherName = '',
       schoolName = '',
       focusKeywords = '',
+      customLessonContent = '',
+      uploadedFile = null,
+      uploadedFiles = null,
       teachingMethod = 'វិធីសាស្ត្របង្រៀនតាមបែបសិស្សមជ្ឈមណ្ឌល (Student-Centered Learning)',
       teachingStrategy = 'យុទ្ធវិធី គិត-គូ-ចែករំលែក (Think-Pair-Share)',
       difficultyLevel = 'មធ្យម (Intermediate)',
     } = req.body;
 
-    if (!topic || topic.trim() === '') {
-      return res.status(400).json({ error: 'សូមបញ្ចូលប្រធានបទមេរៀន' });
+    const allFiles: any[] = [];
+    if (Array.isArray(uploadedFiles) && uploadedFiles.length > 0) {
+      allFiles.push(...uploadedFiles);
+    } else if (uploadedFile) {
+      allFiles.push(uploadedFile);
     }
+
+    const rawTopic = (req.body.topic || '').trim();
+    if (!rawTopic && !chapter && !lessonNo && allFiles.length === 0) {
+      return res.status(400).json({ error: 'សូមបញ្ចូលប្រធានបទមេរៀន ឬ Upload file សៀវភៅ និងជ្រើសរើសជំពូក/មេរៀន' });
+    }
+
+    const topic = rawTopic || (lessonNo ? `មេរៀន ${lessonNo}` : (chapter ? `ជំពូក ${chapter}` : (allFiles[0]?.detectedTopic || 'មេរៀនតាមសៀវភៅពុម្ព')));
 
     if (!ai) {
       console.log('No Gemini API key found, generating with intelligent curriculum builder...');
@@ -178,6 +226,40 @@ app.post('/api/generate-lesson-plan', async (req, res) => {
 
 សូមសរសេរជាភាសាខ្មែរផ្លូវការ ត្រឹមត្រូវតាមអក្ខរាវិរុទ្ធវចនានុក្រមសម្ដេចព្រះសង្ឃរាជ ជួន ណាត និងពាក្យគរុកោសល្យខ្មែរ។`;
 
+    // Process all uploaded files (extract text for DOCX/TXT if missing)
+    for (const f of allFiles) {
+      if (f.base64Data && !f.extractedText) {
+        const isDocx =
+          f.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+          f.name?.toLowerCase().endsWith('.docx');
+        const isTxt =
+          f.type === 'text/plain' ||
+          f.name?.toLowerCase().endsWith('.txt') ||
+          f.name?.toLowerCase().endsWith('.md');
+        if (isDocx) {
+          try {
+            const buf = Buffer.from(f.base64Data, 'base64');
+            const resDocx = await mammoth.extractRawText({ buffer: buf });
+            f.extractedText = resDocx.value || '';
+          } catch (e: any) {
+            console.error('[Generate] Mammoth extraction warning:', e?.message || e);
+          }
+        } else if (isTxt) {
+          try {
+            const buf = Buffer.from(f.base64Data, 'base64');
+            f.extractedText = buf.toString('utf-8');
+          } catch (e: any) {
+            console.error('[Generate] Txt extraction warning:', e?.message || e);
+          }
+        }
+      }
+    }
+
+    const combinedExtractedText = allFiles
+      .map((f: any) => (f.name ? `[ឯកសារ៖ ${f.name}]\n` : '') + (f.extractedText || ''))
+      .filter((t: string) => t.trim().length > 0)
+      .join('\n\n');
+
     const userPrompt = `ចូររៀបចំកិច្ចតែងការបង្រៀនពេញលេញ និងលម្អិតបំផុតសម្រាប់៖
 - ប្រធានបទ/ចំណងជើងមេរៀន៖ ${topic}
 - មុខវិជ្ជា៖ ${subject}
@@ -191,6 +273,37 @@ app.post('/api/generate-lesson-plan', async (req, res) => {
 - ការផ្ដោតសំខាន់បន្ថែម៖ ${focusKeywords || 'ខ្លឹមសារស្នូល និងការអនុវត្តជាក់ស្ដែង'}
 - វិធីសាស្ត្របង្រៀន៖ ${teachingMethod}
 - យុទ្ធវិធីបង្រៀន (Teaching Strategy / Technique ស្របតាមក្រសួង MoEYS)៖ ${teachingStrategy}
+${allFiles.length > 0 ? `
+*** ឯកសារសៀវភៅពុម្ព ឬ file មេរៀនដែលបាន Upload ភ្ជាប់មកជាមួយ (UPLOADED TEXTBOOK FILES: ${allFiles.map((f: any) => f.name).join(', ')})៖
+${allFiles.map((f: any, idx: number) => `- ឯកសារទី ${idx + 1}: «${f.name}» (${f.type}, ${Math.round((f.size || 0) / 1024)} KB)`).join('\n')}
+${chapter ? `- ជំពូកគោលដៅក្នុងសៀវភៅ៖ «${chapter}»` : ''}
+${lessonNo ? `- មេរៀនគោលដៅក្នុងសៀវភៅ៖ «${lessonNo}»` : ''}
+${targetPage ? `- ទំព័រក្នុងសៀវភៅ (បើមាន)៖ «${targetPage}»` : ''}
+${combinedExtractedText ? `
+--- ខ្លឹមសារដែលបានស្រង់ចេញពី file សៀវភៅ (TEXT EXTRACTED FROM BOOK) ---
+${combinedExtractedText.slice(0, 25000)}
+--- បញ្ចប់ខ្លឹមសារដែលបានស្រង់ចេញ ---
+` : ''}
+
+*** សេចក្ដីណែនាំបច្ចេកទេសស្វែងរកចំជំពូក និងមេរៀនក្នុងសៀវភៅ (CRITICAL TARGET MATCHING FROM UPLOADED BOOK):
+- ឯកសារដែលបាន Upload នេះ អាចជាសៀវភៅពុម្ព ឬ file មេរៀនធំដែលមានមេរៀនជាច្រើន ឬសៀវភៅទាំងមូល ឬមានច្រើន file/ទំព័រ។
+- អ្នកត្រូវតែស្វែងរកទីតាំងឱ្យឃើញច្បាស់នូវ «${chapter ? `ជំពូក ${chapter}` : ''} ${lessonNo ? `មេរៀន ${lessonNo}` : ''} ${topic}» ${targetPage ? `(ទំព័រ «${targetPage}»)` : ''} ក្នុង file សៀវភៅនេះ!
+- ទោះបីជាឯកសារមានច្រើនទំព័រ ឬមានជំពូកជាច្រើនក៏ដោយ ចូរស្រង់យកតែខ្លឹមសារមេរៀន ទ្រឹស្ដី និយមន័យ រូបមន្ត ដំណោះស្រាយគំរូ និងលំហាត់ជាក់លាក់ដែលត្រូវនឹង «${chapter ? `ជំពូក ${chapter}` : ''} ${lessonNo ? `មេរៀន ${lessonNo}` : ''}» នោះមកបង្កើតកិច្ចតែងការបង្រៀនស្តង់ដារ MoEYS ៥ ជំហាន។
+- កំណត់ចំណងជើងមេរៀន (topic) ក្នុង header ឱ្យត្រូវតាមចំណងជើងពិតនៃមេរៀននោះក្នុងសៀវភៅ។
+` : ''}
+${customLessonContent && customLessonContent.trim() ? `
+*** ខ្លឹមសារមេរៀនជាក់លាក់ ឬអត្ថបទដកស្រង់ពីសៀវភៅពុម្ពដែលគ្រូបង្រៀនបានផ្ដល់ជូនផ្ទាល់ (CRITICAL SOURCE MATERIAL PROVIDED BY TEACHER):
+««« អត្ថបទមេរៀន/កថាខណ្ឌ/លំហាត់ជាក់លាក់៖
+${customLessonContent.trim()}
+»»»
+*** សេចក្ដីណែនាំអាទិភាពខ្ពស់បំផុត (TOP PRIORITY):
+- លោកគ្រូ-អ្នកគ្រូបានផ្ដល់ជូននូវអត្ថបទមេរៀនជាក់លាក់ខាងលើនេះ ដើម្បីឱ្យកិច្ចតែងការបង្រៀនចេញមកចំខ្លឹមសារ ១០០% តាមអ្វីដែលគាត់ចង់បង្រៀន!
+- អ្នកត្រូវតែស្រង់យកចំណុចស្នូល និយមន័យ រូបមន្ត ដំណាក់កាលអនុវត្ត និងកថាខណ្ឌសំខាន់ៗដែលមានក្នុងអត្ថបទនេះ មកបំប្លែងជា៖
+  ១. វត្ថុបំណង ៣ ដែន (ចំណេះដឹង បំណិន ឥរិយាបថ) ផ្អែកលើអត្ថបទនេះផ្ទាល់។
+  ២. ជំហានទី ៣ (មេរៀនថ្មី)៖ ត្រូវតែបង្រៀន និងពន្យល់មួយជំហានម្តងៗផ្អែកលើអត្ថបទជាក់លាក់នេះ។
+  ៣. សកម្មភាពគ្រូ និងសិស្ស៖ សួរសំណួរ ពិភាក្សា និងអនុវត្តលើអត្ថបទនេះ។
+  ៤. ការអនុវត្តជាក់ស្ដែង (practicalApplication) និងបញ្ជីវាក្យសព្ទ (vocabularyList) ត្រូវស្រង់ចេញពីអត្ថបទជាក់លាក់នេះជាចម្បង!
+` : ''}
 
 *** ការអនុវត្តវិធីសាស្ត្រ និងយុទ្ធវិធីបង្រៀនស្របតាមក្រសួងអប់រំ យុវជន និងកីឡា (MoEYS Pedagogy & Teaching Strategy):
 - ក្នុងក្បាលទំព័រ (Header): ត្រូវបញ្ជាក់ 'teachingMethod' និង 'teachingStrategy' ឱ្យបានត្រឹមត្រូវ។
@@ -228,8 +341,46 @@ app.post('/api/generate-lesson-plan', async (req, res) => {
    - ប្រសិនបើជា ជីវវិទ្យា ឬមុខវិជ្ជាផ្សេងៗ៖ subjectCategory='biology'/'general' ត្រូវតែមានការអនុវត្តពិសោធន៍ ករណីសិក្សា ឬការអង្កេតជាក់ស្ដែង។
 ៦. ប្រសិនបើ «${topic}» ជាប្រធានបទសរសេរថ្មី ឬគ្មានក្នុងសៀវភៅពុម្ពកម្រិតថ្នាក់ ${grade} នេះទេ ត្រូវតែបង្កើតកិច្ចតែងការបង្រៀនឱ្យស្របតាម «${topic}» នេះ ១០០% ដោយមិនយកគំរូប្រធានបទដដែលៗ ឬគំរូសៀវភៅពុម្ពមកជំនួសជាដាច់ខាត!`;
 
+    let contentsPayload: any = userPrompt;
+
+    // Collect all inline multimodal data (PDFs, images) across all uploaded files
+    const inlineParts: any[] = [];
+    for (const f of allFiles) {
+      if (f.base64Data) {
+        const mime = f.type || '';
+        const isPdf = mime === 'application/pdf' || f.name?.toLowerCase().endsWith('.pdf');
+        const isImg = mime.startsWith('image/');
+        if (isPdf) {
+          inlineParts.push({
+            inlineData: {
+              mimeType: 'application/pdf',
+              data: f.base64Data,
+            },
+          });
+        } else if (isImg) {
+          inlineParts.push({
+            inlineData: {
+              mimeType: mime,
+              data: f.base64Data,
+            },
+          });
+        }
+      }
+    }
+
+    if (inlineParts.length > 0) {
+      contentsPayload = {
+        parts: [
+          ...inlineParts,
+          {
+            text: userPrompt,
+          },
+        ],
+      };
+    }
+
     const response = await generateContentWithFallback(ai, {
-      contents: userPrompt,
+      contents: contentsPayload,
       config: {
         systemInstruction: systemPrompt,
         responseMimeType: 'application/json',
@@ -413,6 +564,12 @@ app.post('/api/generate-lesson-plan', async (req, res) => {
         const fb = buildTopicAlignedLessonPlan(req.body);
         parsed.header.integration = fb.header?.integration || 'ការអប់រំបរិស្ថាន សុខភាព និងសីលធម៌រស់នៅស្អាត';
       }
+      if (customLessonContent && customLessonContent.trim()) {
+        parsed.header.customLessonContent = customLessonContent.trim();
+      }
+    }
+    if (customLessonContent && customLessonContent.trim()) {
+      parsed.customLessonContent = customLessonContent.trim();
     }
     if (!parsed.practicalApplication) {
       const fb = buildTopicAlignedLessonPlan(req.body);
@@ -427,12 +584,152 @@ app.post('/api/generate-lesson-plan', async (req, res) => {
       parsed.illustration = generateTopicIllustration(topic, subject, grade);
     }
 
+    if (allFiles.length > 0) {
+      const srcInfo = {
+        name: allFiles.map((f: any) => f.name).join(', '),
+        chapter: chapter || parsed.header?.chapter || undefined,
+        lessonNo: lessonNo || parsed.header?.lessonNo || undefined,
+        page: targetPage || undefined,
+      };
+      if (parsed.header) {
+        parsed.header.sourceFile = srcInfo;
+      }
+      parsed.sourceFile = srcInfo;
+    }
+
     return res.json(parsed);
   } catch (err: any) {
     console.log('[AI Gateway] Utilizing high-quality pedagogical fallback engine due to upstream demand/quota.');
     // Graceful fallback guarantees user always gets a valid lesson plan
     const fallback = generateIntelligentFallback(req.body);
     return res.json(fallback);
+  }
+});
+
+// Parse Uploaded Lesson / Textbook File Endpoint (Word .docx, Text, PDF, Images)
+app.post('/api/parse-lesson-file', async (req, res) => {
+  try {
+    const { fileName = '', fileType = '', fileBase64 = '' } = req.body;
+    if (!fileBase64) {
+      return res.status(400).json({ error: 'គ្មានទិន្នន័យឯកសារ (No file payload)' });
+    }
+
+    const buffer = Buffer.from(fileBase64, 'base64');
+    let extractedText = '';
+    let detectedOutline: Array<{ chapter: string; lesson: string; topic: string; page?: string }> = [];
+    let detectedTopic = '';
+
+    const isDocx =
+      fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      fileName.toLowerCase().endsWith('.docx');
+    const isText =
+      fileType === 'text/plain' ||
+      fileName.toLowerCase().endsWith('.txt') ||
+      fileName.toLowerCase().endsWith('.md');
+    const isPdf =
+      fileType === 'application/pdf' ||
+      fileName.toLowerCase().endsWith('.pdf');
+    const isImage = fileType.startsWith('image/');
+
+    // 1. DOCX (Word Document) via Mammoth
+    if (isDocx) {
+      try {
+        const result = await mammoth.extractRawText({ buffer });
+        extractedText = result.value || '';
+      } catch (e: any) {
+        console.error('[File Parser] Mammoth extraction warning:', e?.message || e);
+      }
+    }
+    // 2. TXT / Markdown
+    else if (isText) {
+      extractedText = buffer.toString('utf-8');
+    }
+
+    // Heuristic regex outline detection from extracted text
+    if (extractedText) {
+      const lines = extractedText.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+      let currentChapter = '';
+
+      for (const line of lines) {
+        const chapMatch = line.match(/^(?:ជំពូកទី|ជំពូក|Chapter)\s*([០-៩0-9IVX]+)(?:\s*[:៖\-–]\s*(.*))?/i);
+        if (chapMatch) {
+          currentChapter = `ជំពូកទី ${chapMatch[1]}${chapMatch[2] ? `៖ ${chapMatch[2].trim()}` : ''}`;
+        }
+
+        const lesMatch = line.match(/^(?:មេរៀនទី|មេរៀន|Lesson)\s*([០-៩0-9IVX]+)(?:\s*[:៖\-–]\s*(.*))?/i);
+        if (lesMatch) {
+          const lessonNumber = `មេរៀនទី ${lesMatch[1]}`;
+          const topicName = lesMatch[2] ? lesMatch[2].trim() : '';
+          detectedOutline.push({
+            chapter: currentChapter || 'ជំពូកទូទៅ',
+            lesson: lessonNumber,
+            topic: topicName,
+          });
+          if (!detectedTopic && topicName) {
+            detectedTopic = topicName;
+          }
+        }
+      }
+    }
+
+    // 3. For PDF files or Images, if Gemini AI is available, run a fast outline scan
+    if (ai && (isPdf || isImage) && detectedOutline.length === 0) {
+      try {
+        const scanPrompt = `អ្នកជាអ្នកជំនាញវិភាគសៀវភៅពុម្ពនៃ MoEYS កម្ពុជា។ សូមស្កេនមាតិកា (Table of Contents) ឬក្បាលជំពូក និងមេរៀនក្នុង file សៀវភៅនេះ។
+សូមស្រង់បញ្ជីជំពូក និងមេរៀនដែលបានរកឃើញ (រហូតដល់ ២០ មេរៀន) ជា JSON Array តាមទម្រង់៖
+[
+  {
+    "chapter": "ជំពូកទី...",
+    "lesson": "មេរៀនទី...",
+    "topic": "ចំណងជើងមេរៀន...",
+    "page": "ទំព័រ (បើមាន)"
+  }
+]`;
+
+        const scanResponse = await generateContentWithFallback(ai, {
+          contents: {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: isPdf ? 'application/pdf' : fileType,
+                  data: fileBase64,
+                },
+              },
+              {
+                text: scanPrompt,
+              },
+            ],
+          },
+          config: {
+            responseMimeType: 'application/json',
+          },
+        });
+
+        const parsed = JSON.parse(scanResponse.text || '[]');
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          detectedOutline = parsed;
+          if (parsed[0]?.topic) {
+            detectedTopic = parsed[0].topic;
+          }
+        }
+      } catch (scanErr: any) {
+        console.log('[File Parser] AI fast outline scan notice:', scanErr?.message || scanErr);
+      }
+    }
+
+    return res.json({
+      success: true,
+      fileName,
+      fileType,
+      fileSize: buffer.length,
+      textLength: extractedText.length,
+      extractedPreview: extractedText ? extractedText.slice(0, 1500) : '',
+      detectedOutline: detectedOutline.slice(0, 25),
+      detectedTopic,
+    });
+  } catch (err: any) {
+    console.error('[File Parser] General error:', err);
+    return res.status(500).json({ error: 'បរាជ័យក្នុងការវិភាគ file៖ ' + (err?.message || '') });
   }
 });
 

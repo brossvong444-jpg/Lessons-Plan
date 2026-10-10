@@ -89,7 +89,22 @@ export function getStepDurations(totalMinutes: number) {
 }
 
 export function buildTopicAlignedLessonPlan(body: any) {
-  const rawTopic = (body.topic || 'ប្រធានបទមេរៀន').trim();
+  let rawTopic = (body.topic || '').trim();
+  if (!rawTopic || rawTopic === 'ប្រធានបទមេរៀន') {
+    if (body.uploadedFile?.detectedTopic) {
+      rawTopic = body.uploadedFile.detectedTopic;
+    } else if (Array.isArray(body.uploadedFiles) && body.uploadedFiles[0]?.detectedTopic) {
+      rawTopic = body.uploadedFiles[0].detectedTopic;
+    } else if (body.lessonNo && body.chapter) {
+      rawTopic = `${body.chapter} ${body.lessonNo}`;
+    } else if (body.lessonNo) {
+      rawTopic = `មេរៀន ${body.lessonNo}`;
+    } else if (body.chapter) {
+      rawTopic = `ជំពូក ${body.chapter}`;
+    } else {
+      rawTopic = 'ប្រធានបទមេរៀន';
+    }
+  }
   const subject = body.subject || 'ភាសាខ្មែរ';
   const grade = body.grade || 'ថ្នាក់ទី ៩';
   const duration = body.duration || '៥០ នាទី (១ ម៉ោងសិក្សា)';
@@ -138,6 +153,11 @@ export function buildTopicAlignedLessonPlan(body: any) {
   const isCompostOrAgri = t.includes('ជី') || t.includes('កំប៉ុស') || t.includes('កសិកម្ម') || t.includes('ដាំដំណាំ') || t.includes('ដី') || t.includes('កាកសំណល់') || t.includes('ប្លាស្ទិក') || t.includes('កែច្នៃ') || t.includes('បរិស្ថាន') || t.includes('បំពុល');
   const isHealthOrMental = t.includes('សុខភាព') || t.includes('ផ្លូវចិត្ត') || t.includes('ស្ត្រេស') || t.includes('តានតឹង') || t.includes('អារម្មណ៍') || t.includes('អាហារូបត្ថម្ភ') || t.includes('អនាម័យ') || t.includes('ជំងឺ') || t.includes('កីឡា');
   const isMoralityOrCivics = t.includes('ជម្លោះ') || t.includes('សន្តិភាព') || t.includes('សីលធម៌') || t.includes('ច្បាប់') || t.includes('ចរាចរណ៍') || t.includes('ព័ត៌មានក្លែងក្លាយ') || t.includes('មិត្តភាព') || t.includes('សាមគ្គី') || t.includes('ទំនួលខុសត្រូវ');
+  const customContent = (
+    body.customLessonContent ||
+    (body.uploadedFile?.extractedText ? body.uploadedFile.extractedText.slice(0, 10000) : '') ||
+    (Array.isArray(body.uploadedFiles) && body.uploadedFiles[0]?.extractedText ? body.uploadedFiles[0].extractedText.slice(0, 10000) : '')
+  ).trim();
   
   const isKhmerEssayOrWriting = t.includes('តែងសេចក្ដី') || t.includes('តែង') || t.includes('ពន្យល់') || t.includes('ពិភាក្សា') || t.includes('ប្រៀបធៀប') || t.includes('ពណ៌នា');
   const isKhmerGrammar = s.includes('ខ្មែរ') && (t.includes('វេយ្យាករណ៍') || t.includes('នាម') || t.includes('កិរិយា') || t.includes('គុណនាម') || t.includes('ល្បះ') || t.includes('អក្ខរាវិរុទ្ធ') || t.includes('កាព្យ') || t.includes('កំណាព្យ') || t.includes('រឿង') || t.includes('តួអង្គ'));
@@ -2481,9 +2501,36 @@ ${chapter} ${lessonNo}៖ ${rawTopic}
   const practicalApplication = generateSubjectPracticalApplication(rawTopic, subject, grade, isBasic, isAdvanced);
   const vocabularyList = generateSubjectVocabulary(rawTopic, subject, grade);
 
+  // If the teacher provided custom lesson source content, tailor Step 3 content to feature it directly
+  let effectiveStep3Content = step3Content;
+  if (customContent) {
+    effectiveStep3Content = `${chapter} ${lessonNo}៖ ${rawTopic}
+(ខ្លឹមសារដកស្រង់ជាក់លាក់ពីសៀវភៅពុម្ព ឬឯកសារយោងដែលបានផ្ដល់ជូនដោយគ្រូបង្រៀន)
+
+១. ខ្លឹមសារមេរៀនស្នូល និង [ការពន្យល់ពេលរៀនលម្អិត]៖
+${customContent}
+
+២. ក្បួនខ្នាតបច្ចេកទេស និយមន័យ និងការបកស្រាយលម្អិត៖
+- ចំណុចគន្លឹះដែលត្រូវកត់សម្គាល់៖ ស្រង់ចេញពីខ្លឹមសារមេរៀនខាងលើ ដើម្បីឱ្យសិស្សងាយយល់ និងចងចាំបានល្អ
+- [ការពន្យល់ពេលរៀនលម្អិត]៖ គ្រូធ្វើការពន្យល់មួយជំហានម្តងៗ លើទស្សនទាន ទំនាក់ទំនង និងកំហុសសិស្សដែលអាចកើតមាន
+
+៣. ករណីសិក្សា/លំហាត់គំរូ និង [ដំណោះស្រាយលម្អិតជាជំហានៗ]៖
+* ស្ថានភាពជាក់ស្ដែងផ្អែកលើអត្ថបទមេរៀនខាងលើ
+* ដំណោះស្រាយលម្អិតជាជំហានៗ៖
+- ជំហានទី ១ (កំណត់បម្រាប់ និងចំណុចស្នូល)៖ ស្រង់ទិន្នន័យ ឬគំនិតសំខាន់ៗចេញពីអត្ថបទ
+- ជំហានទី ២ (ដំណើរការដោះស្រាយ/វិភាគ)៖ អនុវត្តតាមក្បួនខ្នាតគរុកោសល្យ និងរូបមន្តត្រឹមត្រូវ
+- ជំហានទី ៣ (ការផ្ទៀងផ្ទាត់ និងសន្និដ្ឋាន)៖ បកស្រាយអត្ថន័យ និងតម្លៃជាក់ស្ដែងនៃការអនុវត្ត
+
+៤. សកម្មភាពអនុវត្តជាក្រុម (Group Activity)៖
+* ក្រុមទី ១៖ អាន វិភាគ និងស្រង់ចំណុចសំខាន់ៗនៃអត្ថបទខាងលើ
+* ក្រុមទី ២៖ អនុវត្តដោះស្រាយសំណួរ ឬលំហាត់ជាក់ស្ដែង និងរៀបចំបទបង្ហាញ`;
+  }
+
   return {
     id: 'lp-' + Date.now(),
     createdAt: new Date().toISOString(),
+    customLessonContent: customContent || undefined,
+    sourceFile: body.sourceFile || (body.uploadedFile ? { name: body.uploadedFile.name, chapter: body.chapter, lessonNo: body.lessonNo, page: body.targetPage } : undefined),
     header: {
       country: 'ព្រះរាជាណាចក្រកម្ពុជា',
       motto: 'ជាតិ សាសនា ព្រះមហាក្សត្រ',
@@ -2504,6 +2551,8 @@ ${chapter} ${lessonNo}៖ ${rawTopic}
       teachingStrategy,
       integration,
       difficultyLevel,
+      customLessonContent: customContent || undefined,
+      sourceFile: body.sourceFile || (body.uploadedFile ? { name: body.uploadedFile.name, chapter: body.chapter, lessonNo: body.lessonNo, page: body.targetPage } : undefined),
     },
     objectives: {
       knowledge: knowledgeObjectives,
@@ -2537,7 +2586,7 @@ ${chapter} ${lessonNo}៖ ${rawTopic}
         stepNumber: 'ជំហានទី ៣',
         stepTitle: 'មេរៀនថ្មី',
         duration: stepTimes.step3Str,
-        content: step3Content,
+        content: effectiveStep3Content,
         teacherActivity: step3TeacherActivity,
         studentActivity: step3StudentActivity,
       },

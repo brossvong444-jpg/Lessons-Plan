@@ -1,3 +1,20 @@
+export interface BookOutlineItem {
+  chapter?: string;
+  lesson?: string;
+  topic?: string;
+  page?: string;
+}
+
+export interface UploadedLessonFile {
+  name: string;
+  type: string;
+  size: number;
+  base64Data?: string; // base64 encoded payload
+  extractedText?: string;
+  detectedOutline?: BookOutlineItem[];
+  detectedTopic?: string;
+}
+
 export interface LessonPlanHeader {
   country: string; // ព្រះរាជាណាចក្រកម្ពុជា
   motto: string; // ជាតិ សាសនា ព្រះមហាក្សត្រ
@@ -10,10 +27,17 @@ export interface LessonPlanHeader {
   chapter: string; // ជំពូកទី
   lessonNo: string; // មេរៀនទី
   topic: string; // ចំណងជើងមេរៀន / ប្រធានបទ
-  teachingMethod?: string; // វិធីសាស្ត្របង្រៀន (ឧ. វិធីសាស្ត្រតាមបែបសិស្សមជ្ឈមណ្ឌល, 5E, ស្វែងរកចំណេះដឹង...)
-  teachingStrategy?: string; // យុទ្ធវិធីបង្រៀន (ឧ. យុទ្ធវិធី Think-Pair-Share, Gallery Walk, Jigsaw...)
-  integration?: string; // ការបញ្ជ្រាប (ឧ. បរិស្ថាន, សុខភាព, សីលធម៌, សមភាពយេនឌ័រ, បច្ចេកវិទ្យា, សុវត្ថិភាពចរាចរណ៍)
-  difficultyLevel?: string; // កម្រិតលំបាក (មូលដ្ឋាន / មធ្យម / កម្រិតខ្ពស់)
+  teachingMethod?: string; // វិធីសាស្ត្របង្រៀន
+  teachingStrategy?: string; // យុទ្ធវិធីបង្រៀន
+  integration?: string; // ការបញ្ជ្រាប
+  difficultyLevel?: string; // កម្រិតលំបាក
+  customLessonContent?: string; // ខ្លឹមសារមេរៀនផ្ទាល់ខ្លួន ឬអត្ថបទដកស្រង់ពីសៀវភៅពុម្ព
+  sourceFile?: {
+    name: string;
+    chapter?: string;
+    lessonNo?: string;
+    page?: string;
+  };
 }
 
 export interface LessonPlanObjectives {
@@ -103,6 +127,13 @@ export interface LessonPlanData {
   practicalApplication?: PracticalApplication; // ការអនុវត្តជាក់ស្ដែងតាមប្រធានបទ (គណិតមានប្រមាណវិធី រូបមានរូបមន្ត ខ្មែរមានតែងសេចក្ដី គីមីមានលំហាត់បង្ហាញ ICTមានរូបមន្ត)
   boardSummary?: string; // កិច្ចការលើក្ដារខៀន / ប្លង់ក្ដារខៀន
   reflection?: TeacherReflection;
+  customLessonContent?: string; // ខ្លឹមសារមេរៀនផ្ទាល់ខ្លួន ឬអត្ថបទដកស្រង់ពីសៀវភៅពុម្ព
+  sourceFile?: {
+    name: string;
+    chapter?: string;
+    lessonNo?: string;
+    page?: string;
+  };
 }
 
 export interface GenerateLessonPlanRequest {
@@ -112,13 +143,17 @@ export interface GenerateLessonPlanRequest {
   duration?: string;
   chapter?: string;
   lessonNo?: string;
+  targetPage?: string; // ទំព័រសៀវភៅ (ឧ. ទំព័រ ៤៥-៤៨)
   teacherName?: string;
   schoolName?: string;
   focusKeywords?: string;
+  customLessonContent?: string; // ខ្លឹមសារមេរៀនផ្ទាល់ខ្លួន ឬអត្ថបទដកស្រង់ពីសៀវភៅពុម្ព
+  uploadedFile?: UploadedLessonFile; // file សៀវភៅពុម្ព ឬមេរៀនដែលបាន Upload (PDF, Word, TXT, រូបភាព)
+  uploadedFiles?: UploadedLessonFile[]; // គាំទ្រ upload file មេរៀនច្រើន
   teachingMethod?: string; // វិធីសាស្ត្របង្រៀន
   teachingStrategy?: string; // យុទ្ធវិធីបង្រៀន
-  integration?: string; // ការបញ្ជ្រាប (ឧ. បរិស្ថាន, សុខភាព, សីលធម៌, សមភាពយេនឌ័រ, បច្ចេកវិទ្យា, សុវត្ថិភាពចរាចរណ៍)
-  difficultyLevel?: string; // កម្រិតលំបាក (មូលដ្ឋាន / មធ្យម / កម្រិតខ្ពស់)
+  integration?: string; // ការបញ្ជ្រាប
+  difficultyLevel?: string; // កម្រិតលំបាក
   isCustomTopic?: boolean; // មេរៀនសរសេរថ្មី ឬក្រៅសៀវភៅពុម្ព
   includeIllustration?: boolean; // បង្កើតរូបភាព AI Auto ទៅតាមប្រធានបទ
 }

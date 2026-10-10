@@ -50,6 +50,31 @@ export interface Translations {
   difficultyLabel: string;
   focusKeywordsLabel: string;
   focusKeywordsPlaceholder: string;
+  customLessonContentLabel: string;
+  customLessonContentDesc: string;
+  customLessonContentPlaceholder: string;
+  customLessonContentBadge: string;
+  customLessonContentSamples: string;
+  customLessonClear: string;
+  customLessonCharCount: string;
+  customLessonVoiceInput: string;
+  uploadBookTab: string;
+  writeTopicTab: string;
+  uploadFileLabel: string;
+  uploadFileSub: string;
+  uploadFileFormats: string;
+  uploadFileBtn: string;
+  uploadScanning: string;
+  uploadSuccess: string;
+  uploadRemove: string;
+  targetChapterLabel: string;
+  targetLessonLabel: string;
+  targetPageLabel: string;
+  targetChapterPlaceholder: string;
+  targetLessonPlaceholder: string;
+  targetPagePlaceholder: string;
+  bookScanOutlineTitle: string;
+  bookTargetNote: string;
   teacherNameLabel: string;
   schoolNameLabel: string;
   chapterLabel: string;
@@ -214,6 +239,31 @@ export const translations: Record<Language, Translations> = {
     difficultyLabel: 'កម្រិតលំបាក',
     focusKeywordsLabel: 'ពាក្យគន្លឹះ / ការផ្ដោតសំខាន់បន្ថែម',
     focusKeywordsPlaceholder: 'ឧ. រូបមន្តគន្លឹះ, ការពន្យល់ពេលរៀនលម្អិត, ការដោះស្រាយជាជំហានៗ...',
+    customLessonContentLabel: 'ខ្លឹមសារមេរៀនផ្ទាល់ខ្លួន ឬអត្ថបទដកស្រង់ពីសៀវភៅពុម្ព (Custom Source Content)',
+    customLessonContentDesc: 'បិទភ្ជាប់ (Paste) ឬសរសេរអត្ថបទមេរៀន កថាខណ្ឌពីសៀវភៅពុម្ព រូបមន្ត ឬលំហាត់ជាក់លាក់ ដើម្បីឱ្យប្រព័ន្ធ AI បង្កើតកិច្ចតែងការចំគោលដៅ ១០០%',
+    customLessonContentPlaceholder: 'សូមបិទភ្ជាប់ (Paste) ឬវាយបញ្ចូលអត្ថបទមេរៀនជាក់លាក់ពីសៀវភៅពុម្ពនៅទីនេះ... (ឧ. អត្ថបទអំណាន, ទ្រឹស្ដីបទ, រូបមន្ត, ដំណាក់កាលពិសោធន៍, លំហាត់ ឬការណែនាំបង្រៀនជាក់លាក់)',
+    customLessonContentBadge: 'ចំអ្វីដែលចង់បាន ១០០%',
+    customLessonContentSamples: 'គំរូរហ័ស៖',
+    customLessonClear: 'សម្អាតអត្ថបទ',
+    customLessonCharCount: 'តួអក្សរ',
+    customLessonVoiceInput: 'និយាយបញ្ចូលសំឡេង',
+    uploadBookTab: '📁 Upload File សៀវភៅពុម្ព / មេរៀន',
+    writeTopicTab: '✍️ សរសេរប្រធានបទផ្ទាល់',
+    uploadFileLabel: 'Upload File សៀវភៅពុម្ព ឬឯកសារមេរៀន (PDF, Word, TXT, រូបភាព)',
+    uploadFileSub: 'ទោះបីជា file សៀវភៅមានទំហំធំ ឬមានមេរៀនច្រើនយ៉ាងណាក៏ដោយ គ្រាន់តែដាក់ «ជំពូក» និង «មេរៀន» ឱ្យត្រូវតាមសៀវភៅ នោះប្រព័ន្ធនឹងស្រង់យកមេរៀននោះមកបង្កើតយ៉ាងសុក្រឹត ១០០%',
+    uploadFileFormats: 'គាំទ្រឯកសារ៖ PDF (.pdf), Word (.docx), អត្ថបទ (.txt, .md), រូបភាពទំព័រសៀវភៅ (.jpg, .png)',
+    uploadFileBtn: 'ជ្រើសរើស File សៀវភៅពុម្ព / មេរៀន',
+    uploadScanning: 'កំពុងវិភាគ និងស្កេនមាតិកាសៀវភៅ...',
+    uploadSuccess: 'បានភ្ជាប់ File សៀវភៅជោគជ័យ',
+    uploadRemove: 'ដក File ចេញ',
+    targetChapterLabel: 'ជំពូកទីក្នុងសៀវភៅ (Target Chapter)',
+    targetLessonLabel: 'មេរៀនទីក្នុងសៀវភៅ (Target Lesson)',
+    targetPageLabel: 'ទំព័រក្នុងសៀវភៅ (ស្រេចចិត្ត)',
+    targetChapterPlaceholder: 'ឧ. ជំពូកទី ២ ឬ ជំពូកទី ៣...',
+    targetLessonPlaceholder: 'ឧ. មេរៀនទី ១ ឬ មេរៀនទី ២...',
+    targetPagePlaceholder: 'ឧ. ទំព័រ ៤៥-៤៨',
+    bookScanOutlineTitle: 'មាតិកាជំពូក និងមេរៀនដែលបានរកឃើញក្នុងសៀវភៅ (ចុចលើមេរៀនដើម្បីបំពេញស្វ័យប្រវត្ត)៖',
+    bookTargetNote: 'ប្រព័ន្ធ AI នឹងស្វែងរក និងស្រង់យកមេរៀនចំជំពូក និងមេរៀនដែលបានកំណត់ខាងលើនេះដោយផ្ទាល់ចេញពី file សៀវភៅ!',
     teacherNameLabel: 'ឈ្មោះគ្រូបង្រៀន',
     schoolNameLabel: 'ឈ្មោះសាលារៀន',
     chapterLabel: 'ជំពូកទី (ស្រេចចិត្ត)',
@@ -371,6 +421,31 @@ export const translations: Record<Language, Translations> = {
     difficultyLabel: 'Difficulty Level',
     focusKeywordsLabel: 'Key Terms / Special Instructional Focus',
     focusKeywordsPlaceholder: 'e.g., Key formulas, detailed classroom explanation, step-by-step solution...',
+    customLessonContentLabel: 'Custom Lesson Content / Textbook Excerpt (Source Material)',
+    customLessonContentDesc: 'Paste or type specific lesson text, textbook paragraphs, formulas, or problem sets so the AI generates an ultra-targeted lesson plan matching your exact material',
+    customLessonContentPlaceholder: 'Paste or type your specific lesson text or textbook excerpt here... (e.g. reading passage, theory, formulas, experiment procedure, specific exercises)',
+    customLessonContentBadge: '100% Target-Aligned',
+    customLessonContentSamples: 'Quick Samples:',
+    customLessonClear: 'Clear Text',
+    customLessonCharCount: 'characters',
+    customLessonVoiceInput: 'Voice Input',
+    uploadBookTab: '📁 Upload Textbook / Lesson File',
+    writeTopicTab: '✍️ Write Topic Directly',
+    uploadFileLabel: 'Upload Textbook or Lesson File (PDF, Word, TXT, Images)',
+    uploadFileSub: 'Even if the file is large or contains an entire book, simply specify Chapter and Lesson to accurately generate the lesson plan',
+    uploadFileFormats: 'Supported formats: PDF (.pdf), Word (.docx), Text (.txt, .md), Book page photos (.jpg, .png)',
+    uploadFileBtn: 'Choose Textbook / Lesson File',
+    uploadScanning: 'Analyzing and scanning book contents...',
+    uploadSuccess: 'Book file connected successfully',
+    uploadRemove: 'Remove File',
+    targetChapterLabel: 'Target Chapter in Book',
+    targetLessonLabel: 'Target Lesson in Book',
+    targetPageLabel: 'Book Pages (Optional)',
+    targetChapterPlaceholder: 'e.g. Chapter 2 or Chapter 3...',
+    targetLessonPlaceholder: 'e.g. Lesson 1 or Lesson 2...',
+    targetPagePlaceholder: 'e.g. Pages 45-48',
+    bookScanOutlineTitle: 'Detected Chapters & Lessons in Book (Click to auto-fill):',
+    bookTargetNote: 'AI will accurately find and extract the exact chapter and lesson from this textbook file!',
     teacherNameLabel: 'Teacher Name',
     schoolNameLabel: 'School Name',
     chapterLabel: 'Chapter No. (Optional)',
