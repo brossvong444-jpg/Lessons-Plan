@@ -103,6 +103,7 @@ export interface Translations {
   exportWordBtn: string;
   exportingPdf: string;
   exportingWord: string;
+  qrCodeShareBtn: string;
 
   // Document Fields
   countryName: string;
@@ -290,6 +291,7 @@ export const translations: Record<Language, Translations> = {
     exportWordBtn: 'ទាញយកជា Word (.docx)',
     exportingPdf: 'កំពុងបង្កើត PDF...',
     exportingWord: 'កំពុងបង្កើត Word...',
+    qrCodeShareBtn: 'ចែករំលែក QR Code',
 
     countryName: 'ព្រះរាជាណាចក្រកម្ពុជា',
     countryMotto: 'ជាតិ សាសនា ព្រះមហាក្សត្រ',
@@ -472,6 +474,7 @@ export const translations: Record<Language, Translations> = {
     exportWordBtn: 'Export as Word (.docx)',
     exportingPdf: 'Generating PDF...',
     exportingWord: 'Generating Word...',
+    qrCodeShareBtn: 'Share QR Code',
 
     countryName: 'Kingdom of Cambodia',
     countryMotto: 'Nation Religion King',

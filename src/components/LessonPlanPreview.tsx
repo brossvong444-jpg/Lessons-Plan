@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LessonPlanData, TeachingStep } from '../types/lessonPlan';
-import { Sparkles, Plus, Trash2, Edit2, Check, RefreshCw, Clock, CheckCircle2, AlertCircle, Contrast, Mic, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles, Plus, Trash2, Edit2, Check, RefreshCw, Clock, CheckCircle2, AlertCircle, Contrast, Mic } from 'lucide-react';
 import { calculateStepDurations, sumStepsMinutes, parseDurationMinutes } from '../utils/durationHelper';
 import { ObjectivesManager } from './ObjectivesManager';
 import { PracticalApplicationSection } from './PracticalApplicationSection';
@@ -10,6 +10,7 @@ import { VoiceTextarea } from './VoiceTextarea';
 import { VoiceMicButton } from './VoiceMicButton';
 import { generateSubjectPracticalApplication } from '../../curriculumEngine';
 import { generateTopicIllustration } from '../utils/illustrationEngine';
+import { generateShareUrl, generateQRCodeDataUrl } from '../utils/shareLinkHelper';
 
 interface LessonPlanPreviewProps {
   plan: LessonPlanData;
@@ -17,6 +18,7 @@ interface LessonPlanPreviewProps {
   onUpdatePlan: (updated: LessonPlanData) => void;
   onRefineStep: (stepIndex: number) => void;
   isPrintFriendly?: boolean;
+  isQrEmbeddedInSheet?: boolean;
 }
 
 // Helper to render formatted lines with smart support for titles, solution steps, equations, and calculations
@@ -196,11 +198,37 @@ export const LessonPlanPreview: React.FC<LessonPlanPreviewProps> = ({
   onUpdatePlan,
   onRefineStep,
   isPrintFriendly = false,
+  isQrEmbeddedInSheet = false,
 }) => {
-  const [isSourceTextOpen, setIsSourceTextOpen] = useState(false);
   const h = plan.header;
   const obj = plan.objectives;
   const mat = plan.materials;
+  const [embeddedQrUrl, setEmbeddedQrUrl] = useState<string>('');
+
+  useEffect(() => {
+    if (!isQrEmbeddedInSheet) {
+      setEmbeddedQrUrl('');
+      return;
+    }
+    let isCancelled = false;
+    (async () => {
+      try {
+        const { url } = await generateShareUrl(plan);
+        if (isCancelled) return;
+        const qr = await generateQRCodeDataUrl(url, {
+          size: 180,
+          darkColor: isPrintFriendly ? '#000000' : '#1e3a8a',
+        });
+        if (isCancelled) return;
+        setEmbeddedQrUrl(qr);
+      } catch (e) {
+        console.error('Failed to generate embedded QR code:', e);
+      }
+    })();
+    return () => {
+      isCancelled = true;
+    };
+  }, [isQrEmbeddedInSheet, plan, isPrintFriendly]);
   const effectivePracticalApp =
     plan.practicalApplication ||
     generateSubjectPracticalApplication(
@@ -326,7 +354,15 @@ export const LessonPlanPreview: React.FC<LessonPlanPreviewProps> = ({
         }`}
       >
         {/* Kingdom & Motto Header */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-6 relative">
+          {/* Optional Embedded Scannable QR Code on Lesson Plan Sheet */}
+          {isQrEmbeddedInSheet && embeddedQrUrl && (
+            <div className="absolute top-0 right-0 hidden sm:flex flex-col items-center bg-white p-1.5 rounded-xl border border-slate-300 shadow-2xs print:flex print:absolute print:top-0 print:right-0">
+              <img src={embeddedQrUrl} alt="Lesson Plan QR" className="w-16 h-16 object-contain" />
+              <span className="text-[8px] font-bold text-slate-700 mt-0.5 tracking-tight">ស្កេនមេរៀន</span>
+            </div>
+          )}
+
           <h2 className={`font-moul text-lg sm:text-xl leading-relaxed ${isPrintFriendly ? 'text-black' : 'text-slate-900'}`}>
             {isEditing ? (
               <VoiceInput
@@ -709,84 +745,6 @@ export const LessonPlanPreview: React.FC<LessonPlanPreviewProps> = ({
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
               ✓ ស្រង់ចំមេរៀនក្នុងសៀវភៅ ១០០%
             </span>
-          </div>
-        )}
-
-        {/* Custom Lesson Source Content (អត្ថបទមេរៀនដើមដែលបានផ្ដល់ជូនដោយគ្រូបង្រៀន) */}
-        {(plan.customLessonContent || h.customLessonContent) && (
-          <div
-            className={`mb-6 rounded-xl border transition-all ${
-              isPrintFriendly
-                ? 'border-black/40 bg-white text-black p-3 text-xs'
-                : 'border-indigo-200 bg-gradient-to-r from-indigo-50/70 via-blue-50/40 to-white shadow-xs p-3.5 sm:p-4'
-            }`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center flex-wrap gap-2">
-                <FileText className={`w-4 h-4 shrink-0 ${isPrintFriendly ? 'text-black' : 'text-indigo-600'}`} />
-                <span className={`font-bold text-xs sm:text-sm ${isPrintFriendly ? 'text-black' : 'text-indigo-950'}`}>
-                  អត្ថបទមេរៀនដើមដែលបានផ្ដល់ជូនដោយគ្រូបង្រៀន (Source Material)
-                </span>
-                <span
-                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                    isPrintFriendly
-                      ? 'border border-black text-black'
-                      : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
-                  }`}
-                >
-                  ចំអ្វីដែលចង់បាន ១០០%
-                </span>
-              </div>
-              {!isPrintFriendly && (
-                <button
-                  type="button"
-                  onClick={() => setIsSourceTextOpen(!isSourceTextOpen)}
-                  className="text-xs text-indigo-700 hover:text-indigo-900 font-medium flex items-center gap-1 cursor-pointer shrink-0"
-                >
-                  <span>{isSourceTextOpen ? 'បង្រួម' : 'មើលអត្ថបទដើមពេញលេញ'}</span>
-                  {isSourceTextOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                </button>
-              )}
-            </div>
-
-            {/* Editable or Display View */}
-            {isEditing ? (
-              <div className="mt-3">
-                <label className="text-[11px] font-medium text-slate-600 block mb-1">
-                  កែសម្រួលអត្ថបទមេរៀនដើម៖
-                </label>
-                <VoiceTextarea
-                  value={plan.customLessonContent || h.customLessonContent || ''}
-                  onChangeValue={(val) => {
-                    onUpdatePlan({
-                      ...plan,
-                      customLessonContent: val,
-                      header: {
-                        ...plan.header,
-                        customLessonContent: val,
-                      },
-                    });
-                  }}
-                  rows={4}
-                  className="w-full text-xs sm:text-sm p-2 rounded-lg border border-indigo-300 bg-white text-slate-900 font-sans"
-                  placeholder="ខ្លឹមសារមេរៀនដើម..."
-                />
-              </div>
-            ) : isSourceTextOpen || isPrintFriendly ? (
-              <div
-                className={`mt-2.5 pt-2.5 border-t ${
-                  isPrintFriendly ? 'border-black/20 text-black' : 'border-indigo-100 text-slate-800'
-                }`}
-              >
-                <p className="text-xs sm:text-[13px] leading-relaxed whitespace-pre-line font-sans bg-white/80 p-3 rounded-lg border border-indigo-100/80">
-                  {plan.customLessonContent || h.customLessonContent}
-                </p>
-              </div>
-            ) : (
-              <p className="mt-1 text-xs text-slate-600 line-clamp-1 italic">
-                «{(plan.customLessonContent || h.customLessonContent || '').slice(0, 140)}...»
-              </p>
-            )}
           </div>
         )}
 

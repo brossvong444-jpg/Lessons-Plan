@@ -10,11 +10,13 @@ import {
   Share2,
   Sparkles,
   Contrast,
+  QrCode,
 } from 'lucide-react';
 import { LessonPlanData } from '../types/lessonPlan';
 import { exportLessonPlanToDocx, downloadBlob } from '../utils/docxExport';
 import { exportLessonPlanToPdf } from '../utils/pdfExport';
 import { useLanguage } from '../i18n/LanguageContext';
+import { QRCodeShareModal } from './QRCodeShareModal';
 import confetti from 'canvas-confetti';
 
 interface ExportToolbarProps {
@@ -24,6 +26,8 @@ interface ExportToolbarProps {
   onSaveToHistory: () => void;
   isPrintFriendly: boolean;
   onTogglePrintFriendly: () => void;
+  isQrEmbeddedInSheet?: boolean;
+  onToggleQrEmbeddedInSheet?: (val: boolean) => void;
 }
 
 export const ExportToolbar: React.FC<ExportToolbarProps> = ({
@@ -33,10 +37,13 @@ export const ExportToolbar: React.FC<ExportToolbarProps> = ({
   onSaveToHistory,
   isPrintFriendly,
   onTogglePrintFriendly,
+  isQrEmbeddedInSheet = false,
+  onToggleQrEmbeddedInSheet,
 }) => {
   const { t, language } = useLanguage();
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
@@ -242,6 +249,16 @@ ${
             )}
           </button>
 
+          {/* QR Code Share Generator */}
+          <button
+            onClick={() => setIsQrModalOpen(true)}
+            className="flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 text-indigo-700 border border-indigo-200 transition shadow-2xs hover:shadow-xs"
+            title={language === 'km' ? 'បង្កើត QR Code សម្រាប់ចែករំលែកដល់គ្រូបង្រៀនដទៃ' : 'Generate QR Code to share with teachers'}
+          >
+            <QrCode className="w-4 h-4 text-indigo-600" />
+            <span>{t.qrCodeShareBtn}</span>
+          </button>
+
           {/* Direct Print Option */}
           <button
             onClick={handleDirectPrint}
@@ -307,6 +324,15 @@ ${
           </button>
         </div>
       </div>
+
+      {/* QR Code Sharing Modal */}
+      <QRCodeShareModal
+        isOpen={isQrModalOpen}
+        onClose={() => setIsQrModalOpen(false)}
+        plan={plan}
+        isEmbeddedInSheet={isQrEmbeddedInSheet}
+        onToggleEmbedInSheet={onToggleQrEmbeddedInSheet}
+      />
     </div>
   );
 };

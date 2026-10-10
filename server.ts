@@ -833,6 +833,71 @@ app.post('/api/generate-vocabulary', async (req, res) => {
   }
 });
 
+// Cache storage for QR-code shareable lesson plans
+const sharesFilePath = path.resolve('shared_plans_cache.json');
+let sharedPlansStore: Record<string, { plan: any; createdAt: number }> = {};
+
+try {
+  if (fs.existsSync(sharesFilePath)) {
+    sharedPlansStore = JSON.parse(fs.readFileSync(sharesFilePath, 'utf8'));
+  }
+} catch (e) {
+  console.log('[Share Cache] Initialized in-memory store');
+}
+
+function persistSharedPlans() {
+  try {
+    fs.writeFileSync(sharesFilePath, JSON.stringify(sharedPlansStore, null, 2), 'utf8');
+  } catch (e) {
+    console.error('[Share Cache] Save error:', e);
+  }
+}
+
+// POST /api/share-plan - Save plan and return short shareId
+app.post('/api/share-plan', (req, res) => {
+  try {
+    const { plan } = req.body;
+    if (!plan || !plan.header) {
+      return res.status(400).json({ error: 'Invalid plan data' });
+    }
+
+    const shareId = 'lp' + Math.random().toString(36).substring(2, 9);
+    sharedPlansStore[shareId] = {
+      plan,
+      createdAt: Date.now(),
+    };
+
+    persistSharedPlans();
+
+    return res.json({
+      success: true,
+      shareId,
+    });
+  } catch (err) {
+    console.error('[Share API] Share plan error:', err);
+    return res.status(500).json({ error: 'Failed to create share link' });
+  }
+});
+
+// GET /api/shared-plan/:id - Retrieve shared plan by short shareId
+app.get('/api/shared-plan/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const entry = sharedPlansStore[id];
+    if (!entry) {
+      return res.status(404).json({ error: 'Shared lesson plan not found' });
+    }
+    return res.json({
+      success: true,
+      plan: entry.plan,
+      createdAt: entry.createdAt,
+    });
+  } catch (err) {
+    console.error('[Share API] Retrieve plan error:', err);
+    return res.status(500).json({ error: 'Failed to retrieve shared plan' });
+  }
+});
+
 // Refine Step / Section Endpoint
 app.post('/api/refine-step', async (req, res) => {
   const { step, instruction, subject, grade, topic, totalDuration } = req.body;

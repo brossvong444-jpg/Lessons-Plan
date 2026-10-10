@@ -352,44 +352,6 @@ export async function exportLessonPlanToDocx(plan: LessonPlanData): Promise<Blob
                 ],
               }),
 
-              // Row 7 (Optional): Custom Source Material Excerpt
-              ...((h.customLessonContent || plan.customLessonContent)
-                ? [
-                    new TableRow({
-                      children: [
-                        new TableCell({
-                          columnSpan: 2,
-                          shading: { fill: 'F1F5F9' },
-                          children: [
-                            new Paragraph({
-                              children: [
-                                new TextRun({
-                                  text: 'ខ្លឹមសារដកស្រង់ពីសៀវភៅពុម្ព/ឯកសារយោងជាក់លាក់៖ ',
-                                  bold: true,
-                                  font: 'Kantumruy Pro',
-                                  size: 19,
-                                  color: '1E293B',
-                                }),
-                                new TextRun({
-                                  text:
-                                    (h.customLessonContent || plan.customLessonContent || '').slice(0, 260) +
-                                    ((h.customLessonContent || plan.customLessonContent || '').length > 260
-                                      ? '...'
-                                      : ''),
-                                  italics: true,
-                                  font: 'Kantumruy Pro',
-                                  size: 18,
-                                  color: '475569',
-                                }),
-                              ],
-                            }),
-                          ],
-                        }),
-                      ],
-                    }),
-                  ]
-                : []),
-
               // Row 8 (Optional): Uploaded Textbook Source File Reference
               ...((h.sourceFile || plan.sourceFile)
                 ? [

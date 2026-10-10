@@ -16,6 +16,7 @@ import { LessonPlanData, GenerateLessonPlanRequest } from './types/lessonPlan';
 import { generateTopicIllustration } from './utils/illustrationEngine';
 import { buildTopicAlignedLessonPlan } from '../curriculumEngine';
 import { useLanguage } from './i18n/LanguageContext';
+import { resolveSharedPlan } from './utils/shareLinkHelper';
 import { FileCheck, Sparkles, AlertCircle, HelpCircle, ArrowDown, ShieldCheck, Heart } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -68,6 +69,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isPrintFriendly, setIsPrintFriendly] = useState(false);
+  const [isQrEmbeddedInSheet, setIsQrEmbeddedInSheet] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [refineModal, setRefineModal] = useState<{
     isOpen: boolean;
@@ -88,6 +90,54 @@ export default function App() {
       console.error(e);
     }
   }, [savedPlans]);
+
+  // Check on mount for shared lesson plan via QR Code or link
+  useEffect(() => {
+    async function checkForSharedPlan() {
+      try {
+        const searchParams = new URLSearchParams(window.location.search);
+        let payload = searchParams.get('share');
+
+        if (!payload && window.location.hash) {
+          const hash = window.location.hash.substring(1);
+          if (hash.startsWith('shared_data=')) {
+            payload = hash.replace('shared_data=', '');
+          } else if (hash.startsWith('share=')) {
+            payload = hash.replace('share=', '');
+          }
+        }
+
+        if (payload) {
+          setIsLoading(true);
+          const resolved = await resolveSharedPlan(payload);
+          if (resolved) {
+            const populated = ensurePlanIllustration(resolved);
+            setCurrentPlan(populated);
+            setSavedPlans((prev) => [populated, ...prev.filter((p) => p.id !== populated.id)]);
+            showToast(
+              language === 'km'
+                ? `📖 បានទទួលកិច្ចតែងការចែករំលែក៖ ${populated.header.topic || ''}`
+                : `📖 Loaded shared lesson plan: ${populated.header.topic || ''}`
+            );
+            confetti({
+              particleCount: 65,
+              spread: 75,
+              origin: { y: 0.5 },
+            });
+            setTimeout(() => {
+              previewRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, 350);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load shared lesson plan from link:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    checkForSharedPlan();
+  }, [language]);
 
   const showToast = (msg: string) => {
     setNotification(msg);
@@ -303,6 +353,15 @@ export default function App() {
                   : (language === 'km' ? 'បានបិទទម្រង់ Print-Friendly' : 'Print-Friendly mode disabled'),
               );
             }}
+            isQrEmbeddedInSheet={isQrEmbeddedInSheet}
+            onToggleQrEmbeddedInSheet={(val) => {
+              setIsQrEmbeddedInSheet(val);
+              showToast(
+                val
+                  ? (language === 'km' ? 'បានបើកការបង្ហាញ QR Code លើក្បាលសន្លឹកកិច្ចតែងការ' : 'QR Code embedded in lesson sheet')
+                  : (language === 'km' ? 'បានបិទការបង្ហាញ QR Code លើក្បាលសន្លឹកកិច្ចតែងការ' : 'QR Code removed from lesson sheet')
+              );
+            }}
           />
         </section>
 
@@ -338,6 +397,7 @@ export default function App() {
             onUpdatePlan={(updated) => setCurrentPlan(updated)}
             onRefineStep={handleOpenRefineStep}
             isPrintFriendly={isPrintFriendly}
+            isQrEmbeddedInSheet={isQrEmbeddedInSheet}
           />
         </section>
       </main>
